@@ -1,0 +1,51 @@
+[
+  {
+    "title": "EOProxy Tool",
+    "description": "Network packet analyzer for Endless Online.",
+    "version": "2.3.1",
+    "details": "Updated for the latest EO patch with logging and filtering.",
+    "link": "https://mega.nz/file/MUlniZqL#tm-GC2Ouek9F-sOR7w8P-BkLNIlhRoqS1WRZehdUxOw"
+  },
+  {
+    "title": "Captcha Solver (Trashman Edition)",
+    "description": "Automated OCR-based captcha bypass.",
+    "version": "2.2",
+    "details": "You must download Tesseract: https://github.com/tesseract-ocr/tesseract/releases/download/5.5.0/tesseract-ocr-w64-setup-5.5.0.20241111.exe. Once installed, run the captcha script.",
+    "link": "https://mega.nz/file/9YNUgSDK#QGW21abjoLvwUEEwJOU7HYy515tmseA8FTGPXU1Te2Q"
+  },
+  {
+    "title": "Tesseract For Captcha Solver",
+    "description": "Required OCR engine for the captcha solver.",
+    "version": "1.4.2",
+    "details": "You must download Tesseract for the captcha solver to run.",
+    "link": "https://github.com/tesseract-ocr/tesseract/releases/download/5.5.0/tesseract-ocr-w64-setup-5.5.0.20241111.exe"
+  },
+  {
+    "title": "CeraBot",
+    "description": "Automated boss and training bot.",
+    "version": "12",
+    "details": "Melee, ranged, item pickup.",
+    "link": "https://mega.nz/file/NB0zxKyJ#T1dCy4lPXf1OUBPJmiDEnAW5rm3HUJT_QDN-bjtBSJg"
+  },
+  {
+    "title": "Walkable Recorder",
+    "description": "Record tiles for your CeraBot to follow and use.",
+    "version": "2",
+    "details": "An easy-to-use recorder to create your walkable.json files for CeraBot.",
+    "link": "https://mega.nz/file/QcsiRDpD#BSowb0EWCuQII_J3prYtwA70MJuWbnl-Gotb4EQpEIg"
+  },
+  {
+    "title": "CeraBot 7",
+    "description": "A basic melee bot.",
+    "version": "1.0.0",
+    "details": "Melee, walk, gain EXP. AFK bot.",
+    "link": "https://mega.nz/file/REF2lSZI#zTq43ZD56gF7QBk0C0rGUqvJQ3x62hn4PgXnJQWNPL4"
+  },
+  {
+    "title": "Captcha Solver (LEGACY)",
+    "description": "Automated OCR-based captcha bypass (known issue with small 'k').",
+    "version": "1.4.2",
+    "details": "You must download Tesseract: https://github.com/tesseract-ocr/tesseract/releases/download/5.5.0/tesseract-ocr-w64-setup-5.5.0.20241111.exe. Once installed, run the captcha script.",
+    "link": "https://github.com/HelloSpaghettiBot/EO-Captcha-Solver/blob/main/CaptchaBotV2.py"
+  }
+]

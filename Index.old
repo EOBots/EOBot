@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EOBots</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body { scroll-behavior: smooth; }
+    .section { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    .card { border: 2px solid red; border-radius: 0.5rem; padding: 1rem; transition: all 0.3s ease; cursor: pointer; background-color: rgba(255,0,0,0.05); }
+    .card:hover { background-color: rgba(255,0,0,0.15); }
+    .expanded { background-color: rgba(255,0,0,0.25); }
+  </style>
+</head>
+<body class="bg-black text-white font-sans overflow-x-hidden">
+
+  <!-- Navbar -->
+  <nav class="fixed top-0 left-0 w-full bg-black bg-opacity-80 border-b border-red-600 z-50">
+    <ul class="flex justify-center flex-wrap gap-4 p-4 text-lg">
+      <li><a href="#home" class="hover:text-red-500">Home</a></li>
+      <li><a href="#download" class="hover:text-red-500">Download</a></li>
+      <li><a href="#howto" class="hover:text-red-500">How To</a></li>
+      <li><a href="#forum" class="hover:text-red-500">Discord</a></li>
+      <li><a href="#eor-api" class="hover:text-red-500">EOR DB</a></li>
+      <li><a href="#eoguides" class="hover:text-red-500">EO Guides</a></li>
+    </ul>
+  </nav>
+
+  <!-- Home -->
+  <section id="home" class="section text-center px-8">
+    <h1 class="text-5xl font-bold text-red-500 mb-6">Welcome to EOBots</h1>
+    <p class="max-w-2xl text-lg">
+      EOBots is your hub for Endless Online automation, custom bots, and tools built by players for players.
+      Explore downloads, learn setup guides, and connect with the community.
+    </p>
+  </section>
+
+  <!-- Downloads -->
+  <section id="download" class="section px-6">
+    <h2 class="text-4xl font-bold text-red-500 mb-10">Downloads</h2>
+    <div id="downloadsContainer" class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl"></div>
+  </section>
+
+  <!-- How To -->
+  <section id="howto" class="section px-6">
+    <h2 class="text-4xl font-bold text-red-500 mb-10">COMING SOON - How To Use</h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-6xl mx-auto">
+      <!-- Card -->
+      <div class="card group cursor-pointer rounded-2xl border border-white/10 bg-black/40 p-4 shadow-lg hover:shadow-xl transition"
+           onclick="toggleCard(this)">
+        <h3 class="text-xl font-bold mb-1">Finding NPC Address</h3>
+        <p class="text-white/80">Learn how to find NPC addresses.</p>
+        <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
+          <div class="aspect-video w-full overflow-hidden rounded-xl">
+            <iframe
+              class="h-full w-full"
+              src="https://www.youtube.com/embed/iTLIuEHOfd4?si=ONAaS13zwQDKNSgP"
+              title="YouTube video player"
+              frameborder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerpolicy="strict-origin-when-cross-origin"
+              allowfullscreen>
+            </iframe>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card -->
+      <div class="card group cursor-pointer rounded-2xl border border-white/10 bg-black/40 p-4 shadow-lg hover:shadow-xl transition"
+           onclick="toggleCard(this)">
+        <h3 class="text-xl font-bold mb-1">Configuring CaptchaBot</h3>
+        <p class="text-white/80">Step-by-step setup tutorial.</p>
+        <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
+          <div class="aspect-video w-full overflow-hidden rounded-xl">
+            <iframe
+              class="h-full w-full"
+              src="https://www.youtube.com/embed/ysz5S6PUM-U"
+              title="YouTube video player"
+              frameborder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerpolicy="strict-origin-when-cross-origin"
+              allowfullscreen>
+            </iframe>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card -->
+      <div class="card group cursor-pointer rounded-2xl border border-white/10 bg-black/40 p-4 shadow-lg hover:shadow-xl transition"
+           onclick="toggleCard(this)">
+        <h3 class="text-xl font-bold mb-1">Recording Routes</h3>
+        <p class="text-white/80">Guide to using the WalkPath Recorder.</p>
+        <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
+          <div class="aspect-video w-full overflow-hidden rounded-xl">
+            <iframe
+              class="h-full w-full"
+              src="https://www.youtube.com/embed/eIP6LVxiPqw?si=iVTs-2GNDcT5j953"
+              title="YouTube video player"
+              frameborder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerpolicy="strict-origin-when-cross-origin"
+              allowfullscreen>
+            </iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Forum -->
+  <section id="forum" class="section px-4">
+    <h2 class="text-4xl font-bold text-red-500 mb-6">Community Discord</h2>
+    <p class="mb-4 text-lg text-center max-w-2xl mx-auto">
+      Talk with other EOBots users, share code, report bugs, and discuss updates below.
+    </p>
+
+    <!-- Discord Widget -->
+    <div class="mx-auto max-w-4xl">
+      <div class="relative pt-[150%] rounded-xl overflow-hidden shadow-2xl ring-1 ring-red-500/40">
+        <iframe
+          src="https://discord.com/widget?id=1400941240404410499&theme=dark"
+          class="absolute inset-0 h-full w-full border-0"
+          allowtransparency="true"
+          frameborder="0"
+          sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
+          title="Discord Widget"
+        ></iframe>
+      </div>
+
+      <!-- Invite Button -->
+      <div class="mt-4 text-center">
+        <a
+          href="https://discord.gg/vuKJTzGt9K"
+          target="_blank" rel="noopener"
+          class="inline-block rounded-xl bg-[#5865F2] px-5 py-3 font-semibold text-white hover:opacity-90 transition"
+        >Join our Discord</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- EOR Database Search (mobile-safe heights) -->
+  <section id="eor-api" class="section px-4 min-h-0 justify-start items-stretch">
+    <h2 class="text-4xl font-bold text-red-500 mb-4 text-center">EOR Database Search</h2>
+
+    <div id="eor-wrap" class="mx-auto w-full max-w-5xl rounded-xl border border-red-500/40 bg-black/30 p-4 overflow-hidden">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div class="flex flex-wrap gap-2">
+          <button data-cat="items"  class="eor-tab rounded-md border border-red-500/40 px-3 py-1 text-white">Items</button>
+          <button data-cat="npcs"   class="eor-tab rounded-md border border-red-500/40 px-3 py-1 text-white">NPCs</button>
+          <button data-cat="spells" class="eor-tab rounded-md border border-red-500/40 px-3 py-1 text-white">Spells</button>
+          <button data-cat="maps"   class="eor-tab rounded-md border border-red-500/40 px-3 py-1 text-white">Maps</button>
+          <button data-cat="shops"  class="eor-tab rounded-md border border-red-500/40 px-3 py-1 text-white">Shops</button>
+          <button data-cat="classes" class="eor-tab rounded-md border border-red-500/40 px-3 py-1 text-white">Classes</button>
+          <button data-cat="quests" class="eor-tab rounded-md border border-red-500/40 px-3 py-1 text-white">Quests</button>
+        </div>
+
+        <div class="flex-1"></div>
+
+        <label class="flex items-center gap-2 text-sm text-gray-300">
+          <input id="eor-unk" type="checkbox" class="rounded border-red-500/40 bg-black/70">
+          show_unk=1
+        </label>
+
+        <div class="relative w-full sm:w-80">
+          <input id="eor-q" placeholder="Search name or ID…" class="w-full rounded-md bg-black/70 border border-red-500/40 p-2 text-white pr-10">
+          <span class="absolute right-2 top-2 text-gray-400">⌕</span>
+        </div>
+      </div>
+
+      <div class="mt-4 grid gap-4 lg:grid-cols-2">
+        <div class="min-h-0">
+          <div id="eor-status" class="text-sm text-gray-300 mb-2">Pick a category.</div>
+          <ul id="eor-list" class="divide-y divide-red-500/20 rounded-md border border-red-500/30 bg-black/50 overflow-auto"></ul>
+          <button id="eor-more" class="mt-3 hidden rounded-md border border-red-500/40 px-3 py-1 text-white">Load more</button>
+        </div>
+
+        <div class="rounded-md border border-red-500/30 bg-black/50 p-3 min-h-0 overflow-hidden">
+          <div class="flex items-center justify-between gap-2">
+            <h3 id="eor-detail-title" class="text-xl font-semibold text-white">Details</h3>
+            <div class="flex gap-2">
+              <button id="eor-copy-json" class="rounded-md border border-red-500/40 px-2 py-1 text-xs text-white">Copy JSON</button>
+              <button id="eor-copy-curl" class="rounded-md border border-red-500/40 px-2 py-1 text-xs text-white">Copy curl</button>
+            </div>
+          </div>
+          <div id="eor-images" class="mt-3 flex flex-wrap gap-3 overflow-auto"></div>
+          <pre id="eor-detail" class="mt-3 overflow-auto rounded bg-black/70 p-3 text-green-200 text-sm border border-red-500/20">Select a result…</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EO Guides (screen-fit, with fallback) -->
+  <section id="eoguides" class="section px-4 min-h-0 justify-start items-stretch">
+    <h2 class="text-4xl font-bold text-red-500 mb-4 text-center">EO Guides</h2>
+
+    <div class="mx-auto w-full max-w-6xl rounded-xl border border-red-500/40 bg-black/30 p-4">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <label class="text-sm text-gray-300">
+          Page
+          <select id="eog-select" class="w-full mt-1 rounded-md bg-black/70 border border-red-500/40 p-2 text-white">
+            <option value="https://www.eo-guides.com/">Home</option>
+            <option value="https://www.eo-guides.com/guides">Guides index</option>
+            <option value="https://www.eo-guides.com/quests" selected>Quests</option>
+            <option value="https://www.eo-guides.com/boss-encounters">Boss Encounters</option>
+            <option value="https://www.eo-guides.com/classes">Classes</option>
+            <option value="https://www.eo-guides.com/world-map">World Map</option>
+            <option value="https://www.eo-guides.com/commands">Commands</option>
+          </select>
+        </label>
+
+        <div class="flex-1"></div>
+
+        <a href="https://www.eo-guides.com/" target="_blank" rel="noopener"
+           class="inline-block rounded-md bg-red-600 px-4 py-2 text-white font-semibold hover:opacity-90">
+          Open full site
+        </a>
+      </div>
+
+      <!-- Fit-to-screen wrapper -->
+      <div id="eog-wrap" class="relative mt-4 rounded-xl overflow-hidden shadow-2xl ring-1 ring-red-500/40">
+        <iframe id="eog-frame"
+          src="https://www.eo-guides.com/quests"
+          class="absolute inset-0 w-full h-full border-0"
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+          title="EO Guides"
+        ></iframe>
+      </div>
+
+      <!-- Fallback (shown if the site blocks iframes) -->
+      <div id="eog-fallback" class="hidden mt-3 rounded-md border border-red-500/30 bg-black/50 p-3 text-sm text-gray-300">
+        The site blocked embedding. Use the quick links below to open in a new tab.
+      </div>
+
+      <!-- Quick links -->
+      <div class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <a class="rounded-md border border-red-500/30 bg-black/50 px-3 py-2 text-white hover:bg-black/60"
+           href="https://www.eo-guides.com/guides" target="_blank" rel="noopener">Guides index</a>
+        <a class="rounded-md border border-red-500/30 bg-black/50 px-3 py-2 text-white hover:bg-black/60"
+           href="https://www.eo-guides.com/boss-encounters" target="_blank" rel="noopener">Boss Encounters</a>
+        <a class="rounded-md border border-red-500/30 bg-black/50 px-3 py-2 text-white hover:bg-black/60"
+           href="https://www.eo-guides.com/classes" target="_blank" rel="noopener">Classes</a>
+        <a class="rounded-md border border-red-500/30 bg-black/50 px-3 py-2 text-white hover:bg-black/60"
+           href="https://www.eo-guides.com/world-map" target="_blank" rel="noopener">World Map</a>
+        <a class="rounded-md border border-red-500/30 bg-black/50 px-3 py-2 text-white hover:bg-black/60"
+           href="https://www.eo-guides.com/commands" target="_blank" rel="noopener">Commands</a>
+        <a class="rounded-md border border-red-500/30 bg-black/50 px-3 py-2 text-white hover:bg-black/60"
+           href="https://www.eo-guides.com/quests" target="_blank" rel="noopener">Quests</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="text-center py-6 border-t border-red-600 text-sm">
+    © 2025 EOBots. Built by atRisk.
+  </footer>
+
+  <!-- Scripts -->
+  <script>
+    // Toggle cards (single handler)
+    function toggleCard(cardEl) {
+      document.querySelectorAll('#howto .card').forEach(c => { if (c !== cardEl) collapseCard(c); });
+      const body = cardEl.querySelector('.card-body');
+      if (!body) return;
+      const open = body.classList.contains('hidden');
+      if (open) { body.classList.remove('hidden'); cardEl.classList.add('expanded'); }
+      else { collapseCard(cardEl); }
+    }
+    function collapseCard(cardEl) {
+      const body = cardEl.querySelector('.card-body');
+      if (!body || body.classList.contains('hidden')) return;
+      const iframe = body.querySelector('iframe');
+      if (iframe) { const s = iframe.src; iframe.src = s; } // stop playback
+      body.classList.add('hidden');
+      cardEl.classList.remove('expanded');
+    }
+
+    // Downloads loader (your schema)
+    async function loadDownloads() {
+      const container = document.getElementById('downloadsContainer');
+      try {
+        const res = await fetch('downloads.json', { cache: 'no-store' });
+        if (!res.ok) throw new Error(res.statusText);
+        const downloads = await res.json();
+        if (!Array.isArray(downloads)) throw new Error('downloads.json must be an array');
+
+        container.innerHTML = '';
+        downloads.forEach((d) => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `
+            <h3 class="text-xl font-bold mb-2">${d.title ?? 'Untitled'}</h3>
+            <p>${d.description ?? ''}</p>
+            <div class="hidden mt-4 text-sm">
+              ${d.version ? `<p><strong>Version:</strong> ${d.version}</p>` : ''}
+              ${d.details ? `<p>${d.details}</p>` : ''}
+              ${d.link ? `<a href="${d.link}" target="_blank" class="text-red-400 underline mt-2 inline-block">Download</a>` : ''}
+            </div>
+          `;
+          card.onclick = () => toggleCard(card);
+          container.appendChild(card);
+        });
+      } catch {
+        container.innerHTML = '<p class="text-red-400">Error loading downloads.json</p>';
+      }
+    }
+    loadDownloads();
+  </script>
+
+  <!-- EOR Search (robust + mobile sizing) -->
+  <script>
+  (() => {
+    const BASE = "https://eor-api.exile-studios.com";
+    const unk = document.getElementById("eor-unk");
+    const q = document.getElementById("eor-q");
+    const status = document.getElementById("eor-status");
+    const listEl = document.getElementById("eor-list");
+    const moreBtn = document.getElementById("eor-more");
+    const detailEl = document.getElementById("eor-detail");
+    const titleEl = document.getElementById("eor-detail-title");
+    const imgWrap = document.getElementById("eor-images");
+    const copyJsonBtn = document.getElementById("eor-copy-json");
+    const copyCurlBtn = document.getElementById("eor-copy-curl");
+
+    const tabs = Array.from(document.querySelectorAll(".eor-tab"));
+    let current = "items";
+    let cache = {};
+    let filtered = [];
+    let page = 0;
+    const PAGE_SIZE = 100;
+
+    const catCfg = {
+      items:  { list: "/api/items",   detail: id => `/api/items/${id}`,   images: id => [`/api/items/${id}/graphic`,`/api/items/${id}/graphic/ground`] },
+      npcs:   { list: "/api/npcs",    detail: id => `/api/npcs/${id}`,    images: id => [`/api/npcs/${id}/graphic`] },
+      spells: { list: "/api/spells",  detail: id => `/api/spells/${id}`,  images: id => [`/api/spells/${id}/icon`,`/api/spells/${id}/graphic`] },
+      maps:   { list: "/api/maps",    detail: id => `/api/maps/${id}`,    images: null },
+      shops:  { list: "/api/shops",   detail: name => `/api/shops/${encodeURIComponent(name)}`, images: null },
+      classes:{ list: "/api/classes", detail: id => `/api/classes/${id}`, images: null },
+      quests: { list: "/api/quests",  detail: id => `/api/quests/${id}`,  images: null },
+    };
+
+    function qs(url){ return unk.checked ? url + (url.includes("?") ? "&" : "?") + "show_unk=1" : url; }
+
+    async function fetchJson(path) {
+      const url = qs(BASE + path);
+      const res = await fetch(url, { headers: { "Accept": "application/json" } });
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return res.json();
+    }
+
+    // unwrap list responses that may be arrays, maps, or nested in keys
+    function unwrapForList(cat, data) {
+      if (Array.isArray(data)) return data;
+      if (data && typeof data === "object") {
+        const keysByCat = [cat, "data", "results", "list", "records",
+                           "items","npcs","spells","maps","classes","quests","shops"];
+        for (const k of keysByCat) if (Array.isArray(data[k])) return data[k];
+        const entries = Object.entries(data);
+        if (entries.length) {
+          return entries.map(([k,v]) => {
+            if (typeof v === "string" || typeof v === "number") return { id:k, name:String(v), raw:v };
+            v = v ?? {};
+            return {
+              id: v.id ?? v.itemId ?? v.npcId ?? v.spellId ?? v.classId ?? v.questId ?? v.mapId ?? k,
+              name: v.name ?? v.displayName ?? String(k),
+              raw: v
+            };
+          });
+        }
+      }
+      return [];
+    }
+
+    function normalizeList(cat, list) {
+      return list.map((rec, idx) => {
+        if (typeof rec === "string") return { id: rec, name: rec, raw: rec };
+        if (typeof rec === "number") return { id: rec, name: String(rec), raw: rec };
+        if (rec && typeof rec === "object") {
+          const id = rec.id ?? rec.itemId ?? rec.npcId ?? rec.spellId ?? rec.classId ?? rec.questId ?? rec.mapId ?? rec.index ?? (cat==="shops" ? rec.name : undefined) ?? idx;
+          const name = rec.name ?? rec.displayName ?? ("#" + id);
+          return { id, name, raw: rec };
+        }
+        return { id: idx, name: String(rec), raw: rec };
+      });
+    }
+
+    async function ensureList(cat) {
+      if (cache[cat]?.list) return;
+      status.textContent = `Loading ${cat}…`;
+      try {
+        const raw = await fetchJson(catCfg[cat].list);
+        const unwrapped = unwrapForList(cat, raw);
+        const list = normalizeList(cat, unwrapped);
+        cache[cat] = { raw, list };
+        status.textContent = `Loaded ${list.length} ${cat}.`;
+      } catch (e) {
+        status.textContent = `Error loading ${cat}: ${e.message}`;
+        cache[cat] = { raw: [], list: [] };
+      }
+      sizeEOR(); // recalc heights after load
+    }
+
+    function applyFilter() {
+      const needle = q.value.trim().toLowerCase();
+      const list = cache[current].list || [];
+      filtered = needle
+        ? list.filter(r => String(r.name).toLowerCase().includes(needle) || String(r.id).toLowerCase().includes(needle))
+     
