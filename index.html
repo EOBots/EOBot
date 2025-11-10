@@ -194,31 +194,35 @@
     </div>
   </section>
 
-  <!-- Discord -->
-  <section id="forum" class="section px-4">
-    <h2 class="text-4xl font-bold text-red-500 mb-6">Community Discord</h2>
-    <p class="mb-4 text-lg text-center max-w-2xl mx-auto">
-      Talk with other EOBots users, share code, report bugs, and discuss updates below.
-    </p>
+ <!-- Discord -->
+<section id="forum" class="section px-4 scroll-mt-20">
+  <h2 class="text-4xl font-bold text-red-500 mb-6">Community Discord</h2>
+  <p class="mb-4 text-lg text-center max-w-2xl mx-auto">
+    Talk with other EOBots users, share code, report bugs, and discuss updates below.
+  </p>
 
-    <div class="mx-auto max-w-4xl">
-      <div class="relative pt-[150%] rounded-xl overflow-hidden shadow-2xl ring-1 ring-red-500/40">
-        <iframe
-          src="https://discord.com/widget?id=1400941240404410499&theme=dark"
-          class="absolute inset-0 h-full w-full border-0"
-          allowtransparency="true" frameborder="0"
-          sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
-          title="Discord Widget"></iframe>
-      </div>
-
-      <div class="mt-4 text-center">
-        <a href="https://discord.gg/vuKJTzGt9K" target="_blank" rel="noopener"
-           class="inline-block rounded-xl bg-[#5865F2] px-5 py-3 font-semibold text-white hover:opacity-90 transition">
-          Join our Discord
-        </a>
-      </div>
+  <div class="mx-auto w-full max-w-4xl">
+    <!-- Fill most of the viewport, but stay within min/max for comfort -->
+    <div
+      class="rounded-xl overflow-hidden shadow-2xl ring-1 ring-red-500/40 w-full h-[65vh] sm:h-[70vh] md:h-[75vh] max-h-[900px] min-h-[420px]">
+      <iframe
+        src="https://discord.com/widget?id=1400941240404410499&theme=dark"
+        class="w-full h-full block border-0"
+        allowtransparency="true" frameborder="0"
+        sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
+        title="Discord Widget">
+      </iframe>
     </div>
-  </section>
+
+    <div class="mt-4 text-center">
+      <a href="https://discord.gg/vuKJTzGt9K" target="_blank" rel="noopener"
+         class="inline-block rounded-xl bg-[#5865F2] px-5 py-3 font-semibold text-white hover:opacity-90 transition">
+        Join our Discord
+      </a>
+    </div>
+  </div>
+</section>
+
 
   <!-- EOR Database Search -->
   <section id="eor-api" class="section px-4 min-h-0 justify-start items-stretch w-full">
