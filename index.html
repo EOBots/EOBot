@@ -7,14 +7,15 @@
   <title>EOBots</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root { --nav-h:80px; }
+    :root { --nav-h: 80px; }
     html,body{scroll-behavior:smooth; scroll-padding-top: var(--nav-h);}
-    /* Sections render first, avoid CLS */
+
+    /* Sections fill screen ALWAYS */
     .section{
-      min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;
+      min-height:100svh;               /* full safe viewport */
+      display:flex; flex-direction:column;
+      justify-content:center; align-items:center;
       scroll-margin-top:var(--nav-h);
-      content-visibility:auto;            /* render when near viewport… */
-      contain-intrinsic-size: 1000px;     /* …with reserved size to prevent jumps */
     }
 
     /* Cards */
@@ -26,14 +27,14 @@
     .bg-grid{
       background:
         radial-gradient(ellipse at 50% 20%, rgba(239,68,68,.10), transparent 50%),
-        repeating-linear-gradient(0deg, rgba(239,68,68,.08), rgba(239,68,68,.08) 1px, transparent 1px, transparent 24px),
-        repeating-linear-gradient(90deg, rgba(239,68,68,.08), rgba(239,68,68,.08) 1px, transparent 1px, transparent 24px),
+        repeating-linear-gradient(0deg, rgba(239,68,68,.08) 0 1px, transparent 1px 24px),
+        repeating-linear-gradient(90deg, rgba(239,68,68,.08) 0 1px, transparent 1px 24px),
         #000;
       animation:gridFloat 18s linear infinite;
     }
     @keyframes gridFloat{ 0%{background-position:0 0,0 0,0 0}100%{background-position:0 0,0 24px,24px 0} }
 
-    /* CRT scanline shimmer for splash */
+    /* Splash CRT shimmer */
     .scanlines:after{
       content:""; position:absolute; inset:0;
       background:linear-gradient(to bottom, rgba(255,255,255,.05), rgba(0,0,0,0) 50%);
@@ -41,7 +42,7 @@
     }
     @keyframes scan { 0%{transform:translateY(-100%)} 100%{transform:translateY(100%)} }
 
-    /* ENTER button vibe */
+    /* ENTER button */
     .btn-enter{
       border:2px solid #ef4444;border-radius:9999px;padding:.9rem 1.5rem;
       font-weight:800;letter-spacing:.04em;
@@ -51,19 +52,16 @@
     }
     .btn-enter:hover{transform:translateY(-1px);box-shadow:0 0 0 2px rgba(239,68,68,.35) inset, 0 12px 40px rgba(239,68,68,.28)}
 
-    /* Keep long JSON from forcing horizontal scroll on mobile */
+    /* JSON wrap */
     pre.wrap-json{white-space:pre-wrap;word-wrap:break-word;overflow-x:auto}
 
-    /* Defer-embed skeleton keeps height locked (no jumping) */
+    /* Skeleton keeps a fixed (non-changing) height to prevent jumps */
     .skeleton{
       position:relative; overflow:hidden; border:1px solid rgba(239,68,68,.4); border-radius:12px;
       background:linear-gradient(90deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.02) 40%, rgba(255,255,255,.05) 80%);
       background-size:200% 100%; animation:shimmer 2s linear infinite;
     }
     @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-    .skeleton::after{
-      content:"Loading…"; position:absolute; inset:auto 0 10px 0; text-align:center; color:#bbb; font-size:.8rem;
-    }
 
     @media (max-width:420px){ .toolbar-tight{gap:.5rem} }
   </style>
@@ -177,7 +175,7 @@
     </div>
   </section>
 
-  <!-- Discord (reserved height + deferred load) -->
+  <!-- Discord (fixed responsive height, lazy-src) -->
   <section id="forum" class="section px-4">
     <h2 class="text-4xl font-bold text-red-500 mb-6">Community Discord</h2>
     <p class="mb-4 text-lg text-center max-w-2xl mx-auto">Talk with other EOBots users, share code, report bugs, and discuss updates below.</p>
@@ -202,8 +200,8 @@
     </div>
   </section>
 
-  <!-- EOR Database Search (deferred init) -->
-  <section id="eor-api" class="section px-4 min-h-0 justify-start items-stretch w-full">
+  <!-- EOR Database Search -->
+  <section id="eor-api" class="section px-4 w-full">
     <h2 class="text-4xl font-bold text-red-500 mb-4 text-center">EOR Database Search</h2>
 
     <div class="mx-auto w-full max-w-5xl rounded-xl border border-red-500/40 bg-black/30 p-4">
@@ -254,8 +252,8 @@
     </div>
   </section>
 
-  <!-- EO Guides (reserved height + deferred load) -->
-  <section id="eoguides" class="section px-4 min-h-0 justify-start items-stretch">
+  <!-- EO Guides -->
+  <section id="eoguides" class="section px-4">
     <h2 class="text-4xl font-bold text-red-500 mb-4 text-center">EO Guides</h2>
 
     <div class="mx-auto w-full max-w-6xl rounded-xl border border-red-500/40 bg-black/30 p-4">
@@ -352,72 +350,56 @@
     }
     loadDownloads();
 
-    /* ===========================
-       Deferring heavy embeds + EOR init
-       =========================== */
+    /* ===========
+       Lazy iframes (no layout change)
+       =========== */
     const lazyObserver = new IntersectionObserver((entries)=>{
       for(const e of entries){
         if(!e.isIntersecting) continue;
-
-        // Swap in any deferred iframes inside the section
         e.target.querySelectorAll('iframe.defer-embed[data-src]').forEach(ifr=>{
           if(!ifr.src){
             ifr.src = ifr.getAttribute('data-src');
             ifr.removeAttribute('data-src');
-            // remove skeleton background once loaded
             ifr.addEventListener('load', ()=>{
               const wrap = ifr.closest('.skeleton'); if(wrap) wrap.classList.remove('skeleton');
             }, {once:true});
           }
         });
-
-        // Initialize EOR only once when its section is near
+        // Initialize EOR when its section is visible
         if(e.target.id==='eor-api' && !window.__EOR_INIT__){
           window.__EOR_INIT__ = true;
-          initEOR(); // defined below
+          initEOR();
         }
-
         lazyObserver.unobserve(e.target);
       }
-    }, {root:null, rootMargin:'200px 0px', threshold:0.15});
+    }, {root:null, rootMargin:'150px 0px', threshold:0.15});
 
-    // Observe sections that contain heavy stuff
-    ['forum','eor-api','eoguides'].forEach(id=>{
-      const sec = document.getElementById(id);
+    ['forum','eoguides','eor-api'].forEach(id=>{
+      const sec=document.getElementById(id);
       if(sec) lazyObserver.observe(sec);
     });
 
-    // Also handle EO Guides selector changes after it loads
+    // EO Guides selector (doesn't affect height)
     (function(){
       const sel=document.getElementById("eog-select");
       const frame=document.getElementById("eog-frame");
       const fallback=document.getElementById("eog-fallback");
       const KEY="eog.last";
-
-      // Persist selection
       const last=localStorage.getItem(KEY);
       if(last){ sel.value=last; frame.setAttribute('data-src', last); }
-
       sel.addEventListener("change",()=>{
-        const url = sel.value;
-        localStorage.setItem(KEY,url);
-        // If not yet activated, prime data-src; otherwise swap src directly
-        if(!frame.src){ frame.setAttribute('data-src', url); }
-        else { frame.src = url; }
+        const url=sel.value; localStorage.setItem(KEY,url);
+        if(!frame.src){ frame.setAttribute('data-src', url); } else { frame.src=url; }
       });
-
-      // Show fallback only if we can detect blocking (same-origin never true here)
-      frame.addEventListener("load",()=>{
-        try{
-          const blocked = frame.contentDocument && frame.contentDocument.body && frame.contentDocument.body.childElementCount===0;
-          if(blocked) fallback.classList.remove("hidden");
-        }catch{ /* cross-origin; ignore */ }
-      });
+      frame.addEventListener("load",()=>{ try{
+        const blocked = frame.contentDocument && frame.contentDocument.body && frame.contentDocument.body.childElementCount===0;
+        if(blocked) fallback.classList.remove("hidden");
+      }catch{} });
     })();
 
-    /* ===========================
-       EOR Search (initialized on demand)
-       =========================== */
+    /* ===========
+       EOR Search (init on demand)
+       =========== */
     function initEOR(){
       (()=>{
         const BASE="https://eor-api.exile-studios.com";
@@ -585,7 +567,6 @@
         let t=0; q.addEventListener("input",()=>{clearTimeout(t); t=setTimeout(applyFilter,150);});
         unk.addEventListener("change",()=>initCategory(current));
 
-        // initial category after layout is stable
         initCategory(current);
       })();
     }
