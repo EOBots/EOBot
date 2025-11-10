@@ -1,7 +1,7 @@
 [
   {
     "title": "EOProxy Tool",
-    "description": "Network packet analyzer for Endless Online.",
+    "description": "Network packet analyzer for Endless Online by Abuse built off Exile EOProxy.",
     "version": "2.3.1",
     "details": "Updated for the latest EO patch with logging and filtering.",
     "link": "https://mega.nz/file/MUlniZqL#tm-GC2Ouek9F-sOR7w8P-BkLNIlhRoqS1WRZehdUxOw"
@@ -47,5 +47,19 @@
     "version": "1.4.2",
     "details": "You must download Tesseract: https://github.com/tesseract-ocr/tesseract/releases/download/5.5.0/tesseract-ocr-w64-setup-5.5.0.20241111.exe. Once installed, run the captcha script.",
     "link": "https://github.com/HelloSpaghettiBot/EO-Captcha-Solver/blob/main/CaptchaBotV2.py"
+  },
+    {
+    "title": "Walkable Files",
+    "description": "Walkable.json files.",
+    "version": "1",
+    "details": "You these files are the walkable.json files for the cerabot. Change the name to Walkable.json for the bot to use them.",
+    "link": "https://github.com/EOBots/walkables"
+  },
+  {
+    "title": "Cerabot Source Code",
+    "description": "Cerbot sourcode can be found here.",
+    "version": "2.3.1",
+    "details": "Source code for all different versions of Cerabot",
+    "link": "https://github.com/EOBots/CeraBot"
   }
 ]
