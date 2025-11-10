@@ -68,5 +68,12 @@
     "version": "2",
     "details": "Source code for EO Patcher by Recovery",
     "link": "https://github.com/EOBots/EOBot/blob/main/downloads/EOPatcher"
+  },
+     {
+    "title": "RecoBot Source",
+    "description": "A free opensource bot by recovery - Endless-Online Recharge.",
+    "version": "1",
+    "details": "Source code for recobot by Recovery",
+    "link": "https://github.com/EOBots/RecoBot"
   }
 ]
