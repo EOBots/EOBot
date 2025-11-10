@@ -67,12 +67,6 @@
     "description": "A free opensource launcher/patcher for Endless-Online Recharge.",
     "version": "2",
     "details": "Source code for EO Patcher by Recovery",
-    "link": " {
-    "title": "Cerabot Source Code",
-    "description": "Cerbot sourcode can be found here.",
-    "version": "2.3.1",
-    "details": "Source code for all different versions of Cerabot",
     "link": "https://github.com/EOBots/EOBot/blob/main/downloads/EOPatcher"
-  }"
   }
 ]
