@@ -2,13 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
   <title>EOBots</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    html,body{scroll-behavior:smooth}
-    /* Section layout + scroll offset for fixed navbar */
-    .section{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;scroll-margin-top:80px}
+    :root { --nav-h:80px; }
+    html,body{scroll-behavior:smooth; scroll-padding-top: var(--nav-h);}
+    /* Sections render first, avoid CLS */
+    .section{
+      min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;
+      scroll-margin-top:var(--nav-h);
+      content-visibility:auto;            /* render when near viewport… */
+      contain-intrinsic-size: 1000px;     /* …with reserved size to prevent jumps */
+    }
 
     /* Cards */
     .card{border:2px solid #ef4444;border-radius:.75rem;padding:1rem;transition:all .3s ease;cursor:pointer;background:rgba(255,0,0,.05)}
@@ -24,19 +31,13 @@
         #000;
       animation:gridFloat 18s linear infinite;
     }
-    @keyframes gridFloat{
-      0%{background-position:0 0, 0 0, 0 0}
-      100%{background-position:0 0, 0 24px, 24px 0}
-    }
+    @keyframes gridFloat{ 0%{background-position:0 0,0 0,0 0}100%{background-position:0 0,0 24px,24px 0} }
 
     /* CRT scanline shimmer for splash */
     .scanlines:after{
-      content:"";
-      position:absolute;inset:0;
+      content:""; position:absolute; inset:0;
       background:linear-gradient(to bottom, rgba(255,255,255,.05), rgba(0,0,0,0) 50%);
-      mix-blend-mode:overlay;
-      animation:scan 6s linear infinite;
-      pointer-events:none;
+      mix-blend-mode:overlay; animation:scan 6s linear infinite; pointer-events:none;
     }
     @keyframes scan { 0%{transform:translateY(-100%)} 100%{transform:translateY(100%)} }
 
@@ -49,45 +50,42 @@
       transition:transform .15s ease, box-shadow .2s ease, background .2s ease;
     }
     .btn-enter:hover{transform:translateY(-1px);box-shadow:0 0 0 2px rgba(239,68,68,.35) inset, 0 12px 40px rgba(239,68,68,.28)}
-    .btn-enter:active{transform:translateY(0)}
 
     /* Keep long JSON from forcing horizontal scroll on mobile */
     pre.wrap-json{white-space:pre-wrap;word-wrap:break-word;overflow-x:auto}
 
-    /* Narrow screens: keep search controls tidy */
-    @media (max-width: 420px){
-      .toolbar-tight{gap:.5rem}
+    /* Defer-embed skeleton keeps height locked (no jumping) */
+    .skeleton{
+      position:relative; overflow:hidden; border:1px solid rgba(239,68,68,.4); border-radius:12px;
+      background:linear-gradient(90deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.02) 40%, rgba(255,255,255,.05) 80%);
+      background-size:200% 100%; animation:shimmer 2s linear infinite;
     }
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    .skeleton::after{
+      content:"Loading…"; position:absolute; inset:auto 0 10px 0; text-align:center; color:#bbb; font-size:.8rem;
+    }
+
+    @media (max-width:420px){ .toolbar-tight{gap:.5rem} }
   </style>
 </head>
 <body class="bg-black text-white font-sans overflow-x-hidden bg-grid">
 
-  <!-- Minimal Splash (EOHax-style doorway) -->
+  <!-- Minimal Splash -->
   <section id="splash" class="section relative text-center scanlines">
     <div class="max-w-3xl px-6">
-      <h1 class="text-5xl md:text-6xl font-extrabold tracking-tight">
-        <span class="text-red-500 drop-shadow">EOBots</span>
-      </h1>
-      <p class="mt-4 text-lg text-white/80">
-        Click ENTER to access free, open-source bots, tools, and guides.
-      </p>
-
+      <h1 class="text-5xl md:text-6xl font-extrabold tracking-tight"><span class="text-red-500 drop-shadow">EOBots</span></h1>
+      <p class="mt-4 text-lg text-white/80">Click ENTER to access free, open-source bots, tools, and guides.</p>
       <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
         <a id="enterBtn" href="#home" class="btn-enter">ENTER EOBOTS →</a>
-        <a href="#forum" class="rounded-full px-4 py-3 border border-white/20 hover:border-white/40 transition text-sm">
-          Discord Mirror
-        </a>
+        <a href="#forum" class="rounded-full px-4 py-3 border border-white/20 hover:border-white/40 transition text-sm">Discord Mirror</a>
       </div>
-
-      <p class="mt-6 text-xs text-white/60">
-        Powered by Free &amp; Open Source • Players helping players
-      </p>
+      <p class="mt-6 text-xs text-white/60">Powered by Free &amp; Open Source • Players helping players</p>
     </div>
   </section>
 
   <!-- Navbar -->
-  <nav class="fixed top-0 left-0 w-full bg-black/80 border-b border-red-600 z-50 backdrop-blur">
-    <ul class="flex justify-center flex-wrap gap-4 p-4 text-lg">
+  <nav class="fixed top-0 left-0 w-full bg-black/80 border-b border-red-600 z-50 backdrop-blur" style="height:var(--nav-h)">
+    <ul class="h-full flex items-center justify-center flex-wrap gap-4 px-4 text-lg">
       <li><a href="#home" class="hover:text-red-500">Home</a></li>
       <li><a href="#download" class="hover:text-red-500">Download</a></li>
       <li><a href="#howto" class="hover:text-red-500">How To</a></li>
@@ -97,41 +95,30 @@
     </ul>
   </nav>
 
- <!-- Home (compact spacing + tag pills) -->
-<section id="home" class="section text-center px-6">
-  <header class="mb-4">
-    <h1 class="text-4xl font-bold text-red-500 mb-2">Welcome to EOBots</h1>
-    <p class="text-sm opacity-80">
-      Bots, tools, and clear setup guides—plus a community that actually helps.
-    </p>
-  </header>
+  <!-- Home -->
+  <section id="home" class="section text-center px-6">
+    <header class="mb-4">
+      <h1 class="text-4xl font-bold text-red-500 mb-2">Welcome to EOBots</h1>
+      <p class="text-sm opacity-80">Bots, tools, and clear setup guides—plus a community that actually helps.</p>
+    </header>
 
-  <div class="leading-snug max-w-xl mx-auto">
-    <p class="text-base">
-      Since Endless Online is flooded with paid botters, we’re leveling the field with
-      <strong class="font-semibold">free, open-source</strong> alternatives. They might be a little rougher than the
-      glossy pay-to-win stuff, but they’re yours to inspect, improve, and use—so everyone gets a fair shot.
-    </p>
-
-    <!-- compact, centered tag pills with tight spacing -->
-    <div class="mt-3 flex flex-wrap justify-center gap-2">
-      <span class="px-3 py-1 rounded-full border border-red-600/60 bg-white/5 text-xs">
-        <strong>Free &amp; open-source</strong>: no paywalls
-      </span>
-      <span class="px-3 py-1 rounded-full border border-red-600/60 bg-white/5 text-xs">
-        <strong>Community-driven</strong>: by players, for players
-      </span>
-      <span class="px-3 py-1 rounded-full border border-red-600/60 bg-white/5 text-xs">
-        <strong>Practical over pretty</strong>: effective &amp; auditable
-      </span>
+    <div class="leading-snug max-w-xl mx-auto">
+      <p class="text-base">
+        As the player base has become mainly botters—and many are paying to bot—we’re offering
+        <strong class="font-semibold">free, open-source</strong> botting resources. Some may be less “polished” than pay-to-win bots,
+        but they’re free and open so everyone can catch up.
+      </p>
+      <div class="mt-3 flex flex-wrap justify-center gap-2">
+        <span class="px-3 py-1 rounded-full border border-red-600/60 bg-white/5 text-xs"><strong>Free &amp; open-source</strong>: no paywalls</span>
+        <span class="px-3 py-1 rounded-full border border-red-600/60 bg-white/5 text-xs"><strong>Community-driven</strong>: by players, for players</span>
+        <span class="px-3 py-1 rounded-full border border-red-600/60 bg-white/5 text-xs"><strong>Practical over pretty</strong>: effective &amp; auditable</span>
+      </div>
     </div>
-  </div>
 
-  <footer class="mt-4 pt-3 border-t border-red-600/50 text-xs opacity-90 max-w-xl mx-auto">
-    Explore downloads, learn the setups, and plug into the community.
-  </footer>
-</section>
-
+    <footer class="mt-4 pt-3 border-t border-red-600/50 text-xs opacity-90 max-w-xl mx-auto">
+      Explore downloads, learn the setups, and plug into the community.
+    </footer>
+  </section>
 
   <!-- Downloads -->
   <section id="download" class="section px-6">
@@ -142,16 +129,14 @@
   <!-- How To -->
   <section id="howto" class="section px-6">
     <h2 class="text-4xl font-bold text-red-500 mb-10">How To Use</h2>
-
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-6xl mx-auto">
       <!-- Card -->
-      <div class="card group rounded-2xl border border-white/10 bg-black/40 p-4 shadow-lg hover:shadow-xl transition"
-           onclick="toggleCard(this)">
+      <div class="card group rounded-2xl border border-white/10 bg-black/40 p-4 shadow-lg hover:shadow-xl transition" onclick="toggleCard(this)">
         <h3 class="text-xl font-bold mb-1">Finding NPC Address</h3>
         <p class="text-white/80">Learn how to find NPC addresses.</p>
         <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
           <div class="aspect-video w-full overflow-hidden rounded-xl">
-            <iframe class="h-full w-full"
+            <iframe class="h-full w-full" loading="lazy"
               src="https://www.youtube.com/embed/iTLIuEHOfd4?si=ONAaS13zwQDKNSgP"
               title="YouTube video player" frameborder="0" allowfullscreen
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -161,13 +146,12 @@
       </div>
 
       <!-- Card -->
-      <div class="card group rounded-2xl border border-white/10 bg-black/40 p-4 shadow-lg hover:shadow-xl transition"
-           onclick="toggleCard(this)">
+      <div class="card group rounded-2xl border border-white/10 bg-black/40 p-4 shadow-lg hover:shadow-xl transition" onclick="toggleCard(this)">
         <h3 class="text-xl font-bold mb-1">Configuring CaptchaBot</h3>
         <p class="text-white/80">Step-by-step setup tutorial.</p>
         <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
           <div class="aspect-video w-full overflow-hidden rounded-xl">
-            <iframe class="h-full w-full"
+            <iframe class="h-full w-full" loading="lazy"
               src="https://www.youtube.com/embed/ysz5S6PUM-U"
               title="YouTube video player" frameborder="0" allowfullscreen
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -177,13 +161,12 @@
       </div>
 
       <!-- Card -->
-      <div class="card group rounded-2xl border border-white/10 bg-black/40 p-4 shadow-lg hover:shadow-xl transition"
-           onclick="toggleCard(this)">
+      <div class="card group rounded-2xl border border-white/10 bg-black/40 p-4 shadow-lg hover:shadow-xl transition" onclick="toggleCard(this)">
         <h3 class="text-xl font-bold mb-1">Recording Routes</h3>
         <p class="text-white/80">Guide to using the WalkPath Recorder.</p>
         <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
           <div class="aspect-video w-full overflow-hidden rounded-xl">
-            <iframe class="h-full w-full"
+            <iframe class="h-full w-full" loading="lazy"
               src="https://www.youtube.com/embed/eIP6LVxiPqw?si=iVTs-2GNDcT5j953"
               title="YouTube video player" frameborder="0" allowfullscreen
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -194,37 +177,32 @@
     </div>
   </section>
 
- <!-- Discord -->
-<section id="forum" class="section px-4 scroll-mt-20">
-  <h2 class="text-4xl font-bold text-red-500 mb-6">Community Discord</h2>
-  <p class="mb-4 text-lg text-center max-w-2xl mx-auto">
-    Talk with other EOBots users, share code, report bugs, and discuss updates below.
-  </p>
+  <!-- Discord (reserved height + deferred load) -->
+  <section id="forum" class="section px-4">
+    <h2 class="text-4xl font-bold text-red-500 mb-6">Community Discord</h2>
+    <p class="mb-4 text-lg text-center max-w-2xl mx-auto">Talk with other EOBots users, share code, report bugs, and discuss updates below.</p>
 
-  <div class="mx-auto w-full max-w-4xl">
-    <!-- Fill most of the viewport, but stay within min/max for comfort -->
-    <div
-      class="rounded-xl overflow-hidden shadow-2xl ring-1 ring-red-500/40 w-full h-[65vh] sm:h-[70vh] md:h-[75vh] max-h-[900px] min-h-[420px]">
-      <iframe
-        src="https://discord.com/widget?id=1400941240404410499&theme=dark"
-        class="w-full h-full block border-0"
-        allowtransparency="true" frameborder="0"
-        sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
-        title="Discord Widget">
-      </iframe>
+    <div class="mx-auto w-full max-w-4xl">
+      <div class="rounded-xl overflow-hidden shadow-2xl ring-1 ring-red-500/40 w-full skeleton"
+           style="height:70svh; max-height:900px; min-height:420px;">
+        <iframe
+          data-src="https://discord.com/widget?id=1400941240404410499&theme=dark"
+          class="w-full h-full block border-0 defer-embed"
+          allowtransparency="true" frameborder="0"
+          sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
+          title="Discord Widget" loading="lazy"></iframe>
+      </div>
+
+      <div class="mt-4 text-center">
+        <a href="https://discord.gg/vuKJTzGt9K" target="_blank" rel="noopener"
+           class="inline-block rounded-xl bg-[#5865F2] px-5 py-3 font-semibold text-white hover:opacity-90 transition">
+          Join our Discord
+        </a>
+      </div>
     </div>
+  </section>
 
-    <div class="mt-4 text-center">
-      <a href="https://discord.gg/vuKJTzGt9K" target="_blank" rel="noopener"
-         class="inline-block rounded-xl bg-[#5865F2] px-5 py-3 font-semibold text-white hover:opacity-90 transition">
-        Join our Discord
-      </a>
-    </div>
-  </div>
-</section>
-
-
-  <!-- EOR Database Search -->
+  <!-- EOR Database Search (deferred init) -->
   <section id="eor-api" class="section px-4 min-h-0 justify-start items-stretch w-full">
     <h2 class="text-4xl font-bold text-red-500 mb-4 text-center">EOR Database Search</h2>
 
@@ -257,9 +235,7 @@
       <div class="mt-4 grid gap-4 lg:grid-cols-2">
         <div>
           <div id="eor-status" class="text-sm text-gray-300 mb-2">Pick a category.</div>
-          <ul id="eor-list"
-              class="divide-y divide-red-500/20 rounded-md border border-red-500/30 bg-black/50
-                     max-h-[55vh] overflow-auto"></ul>
+          <ul id="eor-list" class="divide-y divide-red-500/20 rounded-md border border-red-500/30 bg-black/50 max-h-[55vh] overflow-auto"></ul>
           <button id="eor-more" class="mt-3 hidden rounded-md border border-red-500/40 px-3 py-1 text-white">Load more</button>
         </div>
 
@@ -272,14 +248,13 @@
             </div>
           </div>
           <div id="eor-images" class="mt-3 flex flex-wrap gap-3 overflow-auto max-w-full"></div>
-          <pre id="eor-detail"
-               class="mt-3 max-h-[45vh] overflow-auto rounded bg-black/70 p-3 text-green-200 text-sm border border-red-500/20 wrap-json">Select a result…</pre>
+          <pre id="eor-detail" class="mt-3 max-h-[45vh] overflow-auto rounded bg-black/70 p-3 text-green-200 text-sm border border-red-500/20 wrap-json">Select a result…</pre>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- EO Guides (embedded & fits screen with fallback) -->
+  <!-- EO Guides (reserved height + deferred load) -->
   <section id="eoguides" class="section px-4 min-h-0 justify-start items-stretch">
     <h2 class="text-4xl font-bold text-red-500 mb-4 text-center">EO Guides</h2>
 
@@ -301,21 +276,17 @@
         <div class="flex-1"></div>
 
         <a href="https://www.eo-guides.com/" target="_blank" rel="noopener"
-           class="inline-block rounded-md bg-red-600 px-4 py-2 text-white font-semibold hover:opacity-90">
-          Open full site
-        </a>
+           class="inline-block rounded-md bg-red-600 px-4 py-2 text-white font-semibold hover:opacity-90">Open full site</a>
       </div>
 
-      <!-- Fit-to-screen iframe -->
-      <div id="eog-wrap" class="relative mt-4 rounded-xl overflow-hidden shadow-2xl ring-1 ring-red-500/40 h-[70vh] md:h-[80vh]">
+      <div id="eog-wrap" class="relative mt-4 rounded-xl overflow-hidden shadow-2xl ring-1 ring-red-500/40 skeleton"
+           style="height:80svh; max-height:1000px; min-height:420px;">
         <iframe id="eog-frame"
-          src="https://www.eo-guides.com/quests"
-          class="absolute inset-0 w-full h-full border-0"
-          loading="lazy" allowfullscreen
-          title="EO Guides"></iframe>
+          data-src="https://www.eo-guides.com/quests"
+          class="absolute inset-0 w-full h-full border-0 defer-embed"
+          loading="lazy" title="EO Guides"></iframe>
       </div>
 
-      <!-- Fallback if the site blocks iframes -->
       <div id="eog-fallback" class="hidden mt-3 rounded-md border border-red-500/30 bg-black/50 p-3 text-sm text-gray-300">
         Looks like this page can’t be embedded (X-Frame-Options). Use the “Open full site” button above.
       </div>
@@ -329,17 +300,13 @@
 
   <!-- Scripts -->
   <script>
-    // Splash remember (like old doorway, but modern)
+    // Splash remember
     (function(){
       const KEY="eobots.splash.seen";
       const splash=document.getElementById('splash');
       const enter=document.getElementById('enterBtn');
-      if(localStorage.getItem(KEY)==="1"){
-        splash.style.display='none';
-      }
-      enter.addEventListener('click',()=>{
-        localStorage.setItem(KEY,"1");
-      });
+      if(localStorage.getItem(KEY)==="1"){ splash.style.display='none'; }
+      enter.addEventListener('click',()=>{ localStorage.setItem(KEY,"1"); });
     })();
 
     // Toggle cards
@@ -356,7 +323,7 @@
       body.classList.add('hidden'); cardEl.classList.remove('expanded');
     }
 
-    // Downloads loader (keeps your schema)
+    // Downloads loader
     async function loadDownloads(){
       const container=document.getElementById('downloadsContainer');
       try{
@@ -384,219 +351,244 @@
       }
     }
     loadDownloads();
-  </script>
 
-  <!-- EOR Search (robust + NO side overflow) -->
-  <script>
-  (() => {
-    const BASE="https://eor-api.exile-studios.com";
-    const unk=document.getElementById("eor-unk");
-    const q=document.getElementById("eor-q");
-    const status=document.getElementById("eor-status");
-    const listEl=document.getElementById("eor-list");
-    const moreBtn=document.getElementById("eor-more");
-    const detailEl=document.getElementById("eor-detail");
-    const titleEl=document.getElementById("eor-detail-title");
-    const imgWrap=document.getElementById("eor-images");
-    const copyJsonBtn=document.getElementById("eor-copy-json");
-    const copyCurlBtn=document.getElementById("eor-copy-curl");
+    /* ===========================
+       Deferring heavy embeds + EOR init
+       =========================== */
+    const lazyObserver = new IntersectionObserver((entries)=>{
+      for(const e of entries){
+        if(!e.isIntersecting) continue;
 
-    const tabs=[...document.querySelectorAll(".eor-tab")];
-    let current="items";
-    let cache={};
-    let filtered=[];
-    let page=0;
-    const PAGE_SIZE=100;
+        // Swap in any deferred iframes inside the section
+        e.target.querySelectorAll('iframe.defer-embed[data-src]').forEach(ifr=>{
+          if(!ifr.src){
+            ifr.src = ifr.getAttribute('data-src');
+            ifr.removeAttribute('data-src');
+            // remove skeleton background once loaded
+            ifr.addEventListener('load', ()=>{
+              const wrap = ifr.closest('.skeleton'); if(wrap) wrap.classList.remove('skeleton');
+            }, {once:true});
+          }
+        });
 
-    const catCfg={
-      items:{list:"/api/items",detail:id=>`/api/items/${id}`,images:id=>[`/api/items/${id}/graphic`,`/api/items/${id}/graphic/ground`]},
-      npcs:{list:"/api/npcs",detail:id=>`/api/npcs/${id}`,images:id=>[`/api/npcs/${id}/graphic`]},
-      spells:{list:"/api/spells",detail:id=>`/api/spells/${id}`,images:id=>[`/api/spells/${id}/icon`,`/api/spells/${id}/graphic`]},
-      maps:{list:"/api/maps",detail:id=>`/api/maps/${id}`,images:null},
-      shops:{list:"/api/shops",detail:name=>`/api/shops/${encodeURIComponent(name)}`,images:null},
-      classes:{list:"/api/classes",detail:id=>`/api/classes/${id}`,images:null},
-      quests:{list:"/api/quests",detail:id=>`/api/quests/${id}`,images:null},
-    };
+        // Initialize EOR only once when its section is near
+        if(e.target.id==='eor-api' && !window.__EOR_INIT__){
+          window.__EOR_INIT__ = true;
+          initEOR(); // defined below
+        }
 
-    function qs(url){ return unk.checked ? url+(url.includes("?")?"&":"?")+"show_unk=1" : url; }
+        lazyObserver.unobserve(e.target);
+      }
+    }, {root:null, rootMargin:'200px 0px', threshold:0.15});
 
-    async function fetchJson(path){
-      const url=qs(BASE+path);
-      const r=await fetch(url,{headers:{"Accept":"application/json"}});
-      if(!r.ok) throw new Error(r.status+" "+r.statusText);
-      return r.json();
-    }
+    // Observe sections that contain heavy stuff
+    ['forum','eor-api','eoguides'].forEach(id=>{
+      const sec = document.getElementById(id);
+      if(sec) lazyObserver.observe(sec);
+    });
 
-    function unwrapForList(cat,data){
-      if(Array.isArray(data)) return data;
-      if(data && typeof data==="object"){
-        const keys=[cat,"data","results","list","records","items","npcs","spells","maps","classes","quests","shops"];
-        for(const k of keys){ if(Array.isArray(data[k])) return data[k]; }
-        const out=[];
-        for(const [k,v] of Object.entries(data)){
-          if(v==null) continue;
-          if(typeof v==="string"||typeof v==="number"){ out.push({id:k,name:String(v),raw:v}); continue; }
-          out.push({
-            id:v.id??v.itemId??v.npcId??v.spellId??v.classId??v.questId??v.mapId??k,
-            name:v.name??v.displayName??String(k),
-            raw:v
+    // Also handle EO Guides selector changes after it loads
+    (function(){
+      const sel=document.getElementById("eog-select");
+      const frame=document.getElementById("eog-frame");
+      const fallback=document.getElementById("eog-fallback");
+      const KEY="eog.last";
+
+      // Persist selection
+      const last=localStorage.getItem(KEY);
+      if(last){ sel.value=last; frame.setAttribute('data-src', last); }
+
+      sel.addEventListener("change",()=>{
+        const url = sel.value;
+        localStorage.setItem(KEY,url);
+        // If not yet activated, prime data-src; otherwise swap src directly
+        if(!frame.src){ frame.setAttribute('data-src', url); }
+        else { frame.src = url; }
+      });
+
+      // Show fallback only if we can detect blocking (same-origin never true here)
+      frame.addEventListener("load",()=>{
+        try{
+          const blocked = frame.contentDocument && frame.contentDocument.body && frame.contentDocument.body.childElementCount===0;
+          if(blocked) fallback.classList.remove("hidden");
+        }catch{ /* cross-origin; ignore */ }
+      });
+    })();
+
+    /* ===========================
+       EOR Search (initialized on demand)
+       =========================== */
+    function initEOR(){
+      (()=>{
+        const BASE="https://eor-api.exile-studios.com";
+        const unk=document.getElementById("eor-unk");
+        const q=document.getElementById("eor-q");
+        const status=document.getElementById("eor-status");
+        const listEl=document.getElementById("eor-list");
+        const moreBtn=document.getElementById("eor-more");
+        const detailEl=document.getElementById("eor-detail");
+        const titleEl=document.getElementById("eor-detail-title");
+        const imgWrap=document.getElementById("eor-images");
+        const copyJsonBtn=document.getElementById("eor-copy-json");
+        const copyCurlBtn=document.getElementById("eor-copy-curl");
+
+        const tabs=[...document.querySelectorAll(".eor-tab")];
+        let current="items";
+        let cache={};
+        let filtered=[];
+        let page=0;
+        const PAGE_SIZE=100;
+
+        const catCfg={
+          items:{list:"/api/items",detail:id=>`/api/items/${id}`,images:id=>[`/api/items/${id}/graphic`,`/api/items/${id}/graphic/ground`]},
+          npcs:{list:"/api/npcs",detail:id=>`/api/npcs/${id}`,images:id=>[`/api/npcs/${id}/graphic`]},
+          spells:{list:"/api/spells",detail:id=>`/api/spells/${id}`,images:id=>[`/api/spells/${id}/icon`,`/api/spells/${id}/graphic`]},
+          maps:{list:"/api/maps",detail:id=>`/api/maps/${id}`,images:null},
+          shops:{list:"/api/shops",detail:name=>`/api/shops/${encodeURIComponent(name)}`,images:null},
+          classes:{list:"/api/classes",detail:id=>`/api/classes/${id}`,images:null},
+          quests:{list:"/api/quests",detail:id=>`/api/quests/${id}`,images:null},
+        };
+
+        function qs(url){ return unk.checked ? url+(url.includes("?")?"&":"?")+"show_unk=1" : url; }
+
+        async function fetchJson(path){
+          const url=qs(BASE+path);
+          const r=await fetch(url,{headers:{"Accept":"application/json"}});
+          if(!r.ok) throw new Error(r.status+" "+r.statusText);
+          return r.json();
+        }
+
+        function unwrapForList(cat,data){
+          if(Array.isArray(data)) return data;
+          if(data && typeof data==="object"){
+            const keys=[cat,"data","results","list","records","items","npcs","spells","maps","classes","quests","shops"];
+            for(const k of keys){ if(Array.isArray(data[k])) return data[k]; }
+            const out=[];
+            for(const [k,v] of Object.entries(data)){
+              if(v==null) continue;
+              if(typeof v==="string"||typeof v==="number"){ out.push({id:k,name:String(v),raw:v}); continue; }
+              out.push({ id:v.id??v.itemId??v.npcId??v.spellId??v.classId??v.questId??v.mapId??k,
+                         name:v.name??v.displayName??String(k),
+                         raw:v });
+            }
+            return out;
+          }
+          return [];
+        }
+
+        function normalizeList(cat,list){
+          return list.map((rec,idx)=>{
+            if(typeof rec==="string") return {id:rec,name:rec,raw:rec};
+            if(typeof rec==="number") return {id:rec,name:String(rec),raw:rec};
+            const id = rec.id ?? rec.itemId ?? rec.npcId ?? rec.spellId ?? rec.classId ?? rec.questId ?? rec.mapId ?? rec.index ?? (cat==="shops"?rec.name:undefined) ?? idx;
+            const name = rec.name ?? rec.displayName ?? ("#"+id);
+            return {id,name,raw:rec};
           });
         }
-        return out;
-      }
-      return [];
-    }
 
-    function normalizeList(cat,list){
-      return list.map((rec,idx)=>{
-        if(typeof rec==="string") return {id:rec,name:rec,raw:rec};
-        if(typeof rec==="number") return {id:rec,name:String(rec),raw:rec};
-        const id = rec.id ?? rec.itemId ?? rec.npcId ?? rec.spellId ?? rec.classId ?? rec.questId ?? rec.mapId ?? rec.index ?? (cat==="shops"?rec.name:undefined) ?? idx;
-        const name = rec.name ?? rec.displayName ?? ("#"+id);
-        return {id,name,raw:rec};
-      });
-    }
-
-    async function ensureList(cat){
-      if(cache[cat]?.list) return;
-      status.textContent=`Loading ${cat}…`;
-      try{
-        const raw=await fetchJson(catCfg[cat].list);
-        const unwrapped=unwrapForList(cat,raw);
-        const list=normalizeList(cat,unwrapped);
-        cache[cat]={raw,list};
-        status.textContent=`Loaded ${list.length} ${cat}.`;
-      }catch(e){
-        status.textContent=`Error loading ${cat}: ${e.message}`;
-        cache[cat]={raw:[],list:[]};
-      }
-    }
-
-    function applyFilter(){
-      const needle=q.value.trim().toLowerCase();
-      const list=cache[current].list||[];
-      filtered = needle ? list.filter(r =>
-        String(r.name).toLowerCase().includes(needle) ||
-        String(r.id).toLowerCase().includes(needle)
-      ) : list.slice();
-      page=0; renderPage();
-    }
-
-    function renderPage(){
-      listEl.innerHTML="";
-      const start=page*PAGE_SIZE;
-      const slice=filtered.slice(start,start+PAGE_SIZE);
-      if(!slice.length){
-        listEl.innerHTML=`<li class="p-3 text-gray-300">No results.</li>`;
-        moreBtn.classList.add("hidden"); return;
-      }
-      const frag=document.createDocumentFragment();
-      for(const r of slice){
-        const li=document.createElement("li");
-        li.className="p-2 hover:bg-black/40 cursor-pointer";
-        li.innerHTML=`<div class="flex items-center justify-between gap-2">
-          <div class="truncate text-white">${escapeHtml(r.name)}</div>
-          <div class="text-xs text-gray-400">ID: ${escapeHtml(String(r.id))}</div>
-        </div>`;
-        li.addEventListener("click",()=>showDetail(r));
-        frag.appendChild(li);
-      }
-      listEl.appendChild(frag);
-      moreBtn.classList.toggle("hidden", start+PAGE_SIZE>=filtered.length);
-    }
-
-    function escapeHtml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-
-    async function showDetail(r){
-      titleEl.textContent=`${capitalize(current)} – ${r.name}`;
-      detailEl.textContent="Loading details…";
-      imgWrap.innerHTML="";
-      try{
-        const key = (current==="shops") ? r.name : r.id;
-        const path=catCfg[current].detail(key);
-        const data=await fetchJson(path);
-        detailEl.textContent=JSON.stringify(data,null,2);
-
-        const imgs = catCfg[current].images ? catCfg[current].images(r.id) : [];
-        if(imgs && imgs.length){
-          for(const p of imgs){
-            const url=qs(BASE+p);
-            const img=document.createElement("img");
-            img.src=url; img.alt=current+" image";
-            img.className="max-h-64 object-contain rounded border border-red-500/30 bg-black/70 p-2";
-            imgWrap.appendChild(img);
+        async function ensureList(cat){
+          if(cache[cat]?.list) return;
+          status.textContent=`Loading ${cat}…`;
+          try{
+            const raw=await fetchJson(catCfg[cat].list);
+            const unwrapped=unwrapForList(cat,raw);
+            const list=normalizeList(cat,unwrapped);
+            cache[cat]={raw,list};
+            status.textContent=`Loaded ${list.length} ${cat}.`;
+          }catch(e){
+            status.textContent=`Error loading ${cat}: ${e.message}`;
+            cache[cat]={raw:[],list:[]};
           }
         }
-        copyCurlBtn.onclick=()=>copy(`curl "${qs(BASE+path)}"`);
-        copyJsonBtn.onclick=()=>copy(JSON.stringify(data,null,2));
-      }catch(e){
-        detailEl.textContent="Error: "+e.message;
-        copyCurlBtn.onclick=null; copyJsonBtn.onclick=null;
-      }
+
+        function applyFilter(){
+          const needle=q.value.trim().toLowerCase();
+          const list=cache[current].list||[];
+          filtered = needle ? list.filter(r =>
+            String(r.name).toLowerCase().includes(needle) ||
+            String(r.id).toLowerCase().includes(needle)
+          ) : list.slice();
+          page=0; renderPage();
+        }
+
+        function renderPage(){
+          listEl.innerHTML="";
+          const start=page*PAGE_SIZE;
+          const slice=filtered.slice(start,start+PAGE_SIZE);
+          if(!slice.length){
+            listEl.innerHTML=`<li class="p-3 text-gray-300">No results.</li>`;
+            moreBtn.classList.add("hidden"); return;
+          }
+          const frag=document.createDocumentFragment();
+          for(const r of slice){
+            const li=document.createElement("li");
+            li.className="p-2 hover:bg-black/40 cursor-pointer";
+            li.innerHTML=`<div class="flex items-center justify-between gap-2">
+              <div class="truncate text-white">${escapeHtml(r.name)}</div>
+              <div class="text-xs text-gray-400">ID: ${escapeHtml(String(r.id))}</div>
+            </div>`;
+            li.addEventListener("click",()=>showDetail(r));
+            frag.appendChild(li);
+          }
+          listEl.appendChild(frag);
+          moreBtn.classList.toggle("hidden", start+PAGE_SIZE>=filtered.length);
+        }
+
+        function escapeHtml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+        async function showDetail(r){
+          titleEl.textContent=`${capitalize(current)} – ${r.name}`;
+          detailEl.textContent="Loading details…";
+          imgWrap.innerHTML="";
+          try{
+            const key = (current==="shops") ? r.name : r.id;
+            const path=catCfg[current].detail(key);
+            const data=await fetchJson(path);
+            detailEl.textContent=JSON.stringify(data,null,2);
+
+            const imgs = catCfg[current].images ? catCfg[current].images(r.id) : [];
+            if(imgs && imgs.length){
+              for(const p of imgs){
+                const url=qs(BASE+p);
+                const img=document.createElement("img");
+                img.src=url; img.alt=current+" image"; img.decoding="async";
+                img.className="max-h-64 object-contain rounded border border-red-500/30 bg-black/70 p-2";
+                imgWrap.appendChild(img);
+              }
+            }
+            copyCurlBtn.onclick=()=>copy(`curl "${qs(BASE+path)}"`);
+            copyJsonBtn.onclick=()=>copy(JSON.stringify(data,null,2));
+          }catch(e){
+            detailEl.textContent="Error: "+e.message;
+            copyCurlBtn.onclick=null; copyJsonBtn.onclick=null;
+          }
+        }
+
+        function copy(text){
+          navigator.clipboard.writeText(text).then(()=>{
+            copyJsonBtn.textContent="Copied"; copyCurlBtn.textContent="Copied";
+            setTimeout(()=>{copyJsonBtn.textContent="Copy JSON";copyCurlBtn.textContent="Copy curl";},800);
+          });
+        }
+
+        function capitalize(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+
+        function setActive(cat){
+          current=cat;
+          tabs.forEach(b=>b.classList.toggle("bg-red-600",b.dataset.cat===cat));
+        }
+
+        async function initCategory(cat){ setActive(cat); await ensureList(cat); applyFilter(); }
+
+        tabs.forEach(b=>b.addEventListener("click",()=>initCategory(b.dataset.cat)));
+        moreBtn.addEventListener("click",()=>{page++;renderPage();});
+        let t=0; q.addEventListener("input",()=>{clearTimeout(t); t=setTimeout(applyFilter,150);});
+        unk.addEventListener("change",()=>initCategory(current));
+
+        // initial category after layout is stable
+        initCategory(current);
+      })();
     }
-
-    function copy(text){
-      navigator.clipboard.writeText(text).then(()=>{
-        copyJsonBtn.textContent="Copied"; copyCurlBtn.textContent="Copied";
-        setTimeout(()=>{copyJsonBtn.textContent="Copy JSON";copyCurlBtn.textContent="Copy curl";},800);
-      });
-    }
-
-    function capitalize(s){return s.charAt(0).toUpperCase()+s.slice(1);}
-
-    function setActive(cat){
-      current=cat;
-      tabs.forEach(b=>b.classList.toggle("bg-red-600",b.dataset.cat===cat));
-    }
-
-    async function initCategory(cat){ setActive(cat); await ensureList(cat); applyFilter(); }
-
-    tabs.forEach(b=>b.addEventListener("click",()=>initCategory(b.dataset.cat)));
-    moreBtn.addEventListener("click",()=>{page++;renderPage();});
-    let t=0; q.addEventListener("input",()=>{clearTimeout(t); t=setTimeout(applyFilter,150);});
-    unk.addEventListener("change",()=>initCategory(current));
-
-    initCategory(current);
-  })();
-  </script>
-
-  <!-- EO Guides selector + fit + fallback hint -->
-  <script>
-  (() => {
-    const sel=document.getElementById("eog-select");
-    const frame=document.getElementById("eog-frame");
-    const wrap=document.getElementById("eog-wrap");
-    const fallback=document.getElementById("eog-fallback");
-    const KEY="eog.last";
-
-    const last=localStorage.getItem(KEY);
-    if(last){ sel.value=last; frame.src=last; }
-
-    sel.addEventListener("change",()=>{
-      frame.src=sel.value;
-      localStorage.setItem(KEY,sel.value);
-    });
-
-    function size(){
-      if(!wrap) return;
-      const top=wrap.getBoundingClientRect().top;
-      const avail=Math.max(420, window.innerHeight - top - 16);
-      wrap.style.height=avail+"px";
-    }
-    window.addEventListener("resize",size);
-    window.addEventListener("orientationchange",size);
-    window.addEventListener("load",size);
-
-    frame.addEventListener("load",()=>{
-      // If the site blocks iframes, show fallback
-      try{
-        const blocked = frame.contentDocument && frame.contentDocument.body && frame.contentDocument.body.childElementCount===0;
-        if(blocked) fallback.classList.remove("hidden");
-      }catch{
-        // Cross-origin is fine; if it truly blocks, users can use the button above.
-      }
-    });
-  })();
   </script>
 </body>
 </html>
