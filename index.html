@@ -10,12 +10,88 @@
     :root { --nav-h: 80px; }
     html,body{scroll-behavior:smooth; scroll-padding-top: var(--nav-h);}
 
-    /* Sections fill screen ALWAYS */
+    /* Sections ALWAYS full screen */
     .section{
-      min-height:100svh;               /* full safe viewport */
+      min-height:100svh;
       display:flex; flex-direction:column;
       justify-content:center; align-items:center;
       scroll-margin-top:var(--nav-h);
+    }
+
+    /* Animated spacer (between sections) */
+    .spacer {
+      position: relative;
+      width: 100%;
+      height: 12svh;               /* big, obvious divider */
+      min-height: 96px;
+      overflow: hidden;
+      border-top: 1px solid rgba(239,68,68,.35);
+      border-bottom: 1px solid rgba(239,68,68,.35);
+      background:
+        radial-gradient(1200px 120px at 50% 0%, rgba(239,68,68,.10), transparent 60%),
+        #000;
+      isolation:isolate;
+    }
+    .spacer::before,
+    .spacer::after{
+      content:"";
+      position:absolute; inset:-2px;
+      background:
+        repeating-linear-gradient(135deg,
+          rgba(239,68,68,.12) 0 10px,
+          rgba(239,68,68,.06) 10px 20px,
+          transparent 20px 30px,
+          rgba(255,255,255,.04) 30px 40px);
+      animation: slideDiag 10s linear infinite;
+      mix-blend-mode:screen;
+      opacity:.7;
+    }
+    .spacer::after{
+      animation-direction: reverse;
+      opacity:.4;
+      filter: blur(2px);
+    }
+    @keyframes slideDiag {
+      0%   { background-position: 0 0; }
+      100% { background-position: 600px 300px; }
+    }
+    /* Stationary center accent line */
+    .spacer .core{
+      position:absolute; left:0; right:0; top:50%; height:2px; transform:translateY(-50%);
+      background: linear-gradient(90deg, transparent, rgba(239,68,68,.9) 30%, rgba(255,255,255,.9) 50%, rgba(239,68,68,.9) 70%, transparent);
+      box-shadow: 0 0 20px rgba(239,68,68,.35), 0 0 2px rgba(255,255,255,.25) inset;
+      opacity:.9;
+    }
+    /* Endcaps that "pulse" horizontally to imply scroll */
+    .spacer .dash {
+      position:absolute; top:50%; width:120px; height:2px; transform:translateY(-50%);
+      background: repeating-linear-gradient(90deg, rgba(255,255,255,.85) 0 12px, rgba(255,0,0,.85) 12px 24px, transparent 24px 36px);
+      box-shadow: 0 0 10px rgba(239,68,68,.35);
+      animation: dashPulse 3s ease-in-out infinite;
+      opacity:.9;
+    }
+    .spacer .dash.left  { left: 2.5%;  transform:translateY(-50%) scaleX(.9); transform-origin:left; }
+    .spacer .dash.right { right: 2.5%; transform:translateY(-50%) scaleX(.9); transform-origin:right; animation-delay:.8s; }
+    @keyframes dashPulse {
+      0%,100% { filter:brightness(1); transform:translateY(-50%) scaleX(.9); }
+      50%     { filter:brightness(1.4); transform:translateY(-50%) scaleX(1.05); }
+    }
+    /* Label (optional): add data-label attr on spacer to show a small tag */
+    .spacer[data-label]::marker { content:none; }
+    .spacer[data-label]::before{
+      content: attr(data-label);
+      position:absolute; inset:auto auto calc(50% + 16px) 50%;
+      transform: translateX(-50%);
+      padding:.25rem .5rem; font-size:.65rem; letter-spacing:.08em;
+      color:#fff; border:1px solid rgba(239,68,68,.5); border-radius:9999px;
+      background:rgba(239,68,68,.15);
+      text-transform:uppercase;
+      box-shadow: 0 0 8px rgba(239,68,68,.3);
+    }
+
+    /* Respect reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      .spacer::before, .spacer::after, .spacer .dash { animation: none !important; }
     }
 
     /* Cards */
@@ -23,7 +99,7 @@
     .card:hover{background:rgba(255,0,0,.12);transform:translateY(-1px)}
     .expanded{background:rgba(255,0,0,.2);box-shadow:0 0 0 1px #ef4444,0 10px 30px rgba(239,68,68,.15)}
 
-    /* Subtle animated grid backdrop */
+    /* Subtle animated grid page backdrop */
     .bg-grid{
       background:
         radial-gradient(ellipse at 50% 20%, rgba(239,68,68,.10), transparent 50%),
@@ -55,14 +131,6 @@
     /* JSON wrap */
     pre.wrap-json{white-space:pre-wrap;word-wrap:break-word;overflow-x:auto}
 
-    /* Skeleton keeps a fixed (non-changing) height to prevent jumps */
-    .skeleton{
-      position:relative; overflow:hidden; border:1px solid rgba(239,68,68,.4); border-radius:12px;
-      background:linear-gradient(90deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.02) 40%, rgba(255,255,255,.05) 80%);
-      background-size:200% 100%; animation:shimmer 2s linear infinite;
-    }
-    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-
     @media (max-width:420px){ .toolbar-tight{gap:.5rem} }
   </style>
 </head>
@@ -81,7 +149,7 @@
     </div>
   </section>
 
-  <!-- Navbar -->
+  <!-- NAV -->
   <nav class="fixed top-0 left-0 w-full bg-black/80 border-b border-red-600 z-50 backdrop-blur" style="height:var(--nav-h)">
     <ul class="h-full flex items-center justify-center flex-wrap gap-4 px-4 text-lg">
       <li><a href="#home" class="hover:text-red-500">Home</a></li>
@@ -94,12 +162,12 @@
   </nav>
 
   <!-- Home -->
+  <div class="spacer" data-label="Scroll"></div>
   <section id="home" class="section text-center px-6">
     <header class="mb-4">
       <h1 class="text-4xl font-bold text-red-500 mb-2">Welcome to EOBots</h1>
       <p class="text-sm opacity-80">Bots, tools, and clear setup guides—plus a community that actually helps.</p>
     </header>
-
     <div class="leading-snug max-w-xl mx-auto">
       <p class="text-base">
         As the player base has become mainly botters—and many are paying to bot—we’re offering
@@ -112,23 +180,24 @@
         <span class="px-3 py-1 rounded-full border border-red-600/60 bg-white/5 text-xs"><strong>Practical over pretty</strong>: effective &amp; auditable</span>
       </div>
     </div>
-
     <footer class="mt-4 pt-3 border-t border-red-600/50 text-xs opacity-90 max-w-xl mx-auto">
       Explore downloads, learn the setups, and plug into the community.
     </footer>
   </section>
 
   <!-- Downloads -->
+  <div class="spacer" data-label="Downloads"></div>
   <section id="download" class="section px-6">
     <h2 class="text-4xl font-bold text-red-500 mb-10">Downloads</h2>
     <div id="downloadsContainer" class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl"></div>
   </section>
 
   <!-- How To -->
+  <div class="spacer" data-label="Guides"></div>
   <section id="howto" class="section px-6">
     <h2 class="text-4xl font-bold text-red-500 mb-10">How To Use</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-6xl mx-auto">
-      <!-- Card -->
+      <!-- Cards -->
       <div class="card group rounded-2xl border border-white/10 bg-black/40 p-4 shadow-lg hover:shadow-xl transition" onclick="toggleCard(this)">
         <h3 class="text-xl font-bold mb-1">Finding NPC Address</h3>
         <p class="text-white/80">Learn how to find NPC addresses.</p>
@@ -143,7 +212,6 @@
         </div>
       </div>
 
-      <!-- Card -->
       <div class="card group rounded-2xl border border-white/10 bg-black/40 p-4 shadow-lg hover:shadow-xl transition" onclick="toggleCard(this)">
         <h3 class="text-xl font-bold mb-1">Configuring CaptchaBot</h3>
         <p class="text-white/80">Step-by-step setup tutorial.</p>
@@ -158,7 +226,6 @@
         </div>
       </div>
 
-      <!-- Card -->
       <div class="card group rounded-2xl border border-white/10 bg-black/40 p-4 shadow-lg hover:shadow-xl transition" onclick="toggleCard(this)">
         <h3 class="text-xl font-bold mb-1">Recording Routes</h3>
         <p class="text-white/80">Guide to using the WalkPath Recorder.</p>
@@ -175,13 +242,14 @@
     </div>
   </section>
 
-  <!-- Discord (fixed responsive height, lazy-src) -->
+  <!-- Discord -->
+  <div class="spacer" data-label="Discord"></div>
   <section id="forum" class="section px-4">
     <h2 class="text-4xl font-bold text-red-500 mb-6">Community Discord</h2>
     <p class="mb-4 text-lg text-center max-w-2xl mx-auto">Talk with other EOBots users, share code, report bugs, and discuss updates below.</p>
 
     <div class="mx-auto w-full max-w-4xl">
-      <div class="rounded-xl overflow-hidden shadow-2xl ring-1 ring-red-500/40 w-full skeleton"
+      <div class="rounded-xl overflow-hidden shadow-2xl ring-1 ring-red-500/40 w-full"
            style="height:70svh; max-height:900px; min-height:420px;">
         <iframe
           data-src="https://discord.com/widget?id=1400941240404410499&theme=dark"
@@ -200,7 +268,8 @@
     </div>
   </section>
 
-  <!-- EOR Database Search -->
+  <!-- EOR DB -->
+  <div class="spacer" data-label="EOR DB"></div>
   <section id="eor-api" class="section px-4 w-full">
     <h2 class="text-4xl font-bold text-red-500 mb-4 text-center">EOR Database Search</h2>
 
@@ -253,6 +322,7 @@
   </section>
 
   <!-- EO Guides -->
+  <div class="spacer" data-label="EO Guides"></div>
   <section id="eoguides" class="section px-4">
     <h2 class="text-4xl font-bold text-red-500 mb-4 text-center">EO Guides</h2>
 
@@ -277,7 +347,7 @@
            class="inline-block rounded-md bg-red-600 px-4 py-2 text-white font-semibold hover:opacity-90">Open full site</a>
       </div>
 
-      <div id="eog-wrap" class="relative mt-4 rounded-xl overflow-hidden shadow-2xl ring-1 ring-red-500/40 skeleton"
+      <div id="eog-wrap" class="relative mt-4 rounded-xl overflow-hidden shadow-2xl ring-1 ring-red-500/40"
            style="height:80svh; max-height:1000px; min-height:420px;">
         <iframe id="eog-frame"
           data-src="https://www.eo-guides.com/quests"
@@ -292,6 +362,7 @@
   </section>
 
   <!-- Footer -->
+  <div class="spacer" data-label="End"></div>
   <footer class="text-center py-6 border-t border-red-600 text-sm">
     © 2025 EOBots. Built by Cera &amp; Recovery — Featured Work By Empire, Trashman, Jetbot, and more.
   </footer>
@@ -350,9 +421,7 @@
     }
     loadDownloads();
 
-    /* ===========
-       Lazy iframes (no layout change)
-       =========== */
+    /* Lazy iframes (no layout change) + on-demand EOR */
     const lazyObserver = new IntersectionObserver((entries)=>{
       for(const e of entries){
         if(!e.isIntersecting) continue;
@@ -360,12 +429,8 @@
           if(!ifr.src){
             ifr.src = ifr.getAttribute('data-src');
             ifr.removeAttribute('data-src');
-            ifr.addEventListener('load', ()=>{
-              const wrap = ifr.closest('.skeleton'); if(wrap) wrap.classList.remove('skeleton');
-            }, {once:true});
           }
         });
-        // Initialize EOR when its section is visible
         if(e.target.id==='eor-api' && !window.__EOR_INIT__){
           window.__EOR_INIT__ = true;
           initEOR();
@@ -379,7 +444,7 @@
       if(sec) lazyObserver.observe(sec);
     });
 
-    // EO Guides selector (doesn't affect height)
+    // EO Guides selector persistence
     (function(){
       const sel=document.getElementById("eog-select");
       const frame=document.getElementById("eog-frame");
@@ -397,9 +462,7 @@
       }catch{} });
     })();
 
-    /* ===========
-       EOR Search (init on demand)
-       =========== */
+    /* EOR Search (init on demand) */
     function initEOR(){
       (()=>{
         const BASE="https://eor-api.exile-studios.com";
