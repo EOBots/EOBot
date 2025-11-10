@@ -1,0 +1,836 @@
+# EndlessOnlinePatcher.py
+# Python 3.13; PyQt6 preferred, PyQt5 fallback
+# - Wood-themed launcher with custom frameless title bar & half-moon icon
+# - Left links column, News (from your JSON), dense Server Status panel
+# - Auto check/update for game client with full version in version.ini (e.g., 0_04_47)
+# - "Update Patcher" button that checks GitHub Releases for "Patcher V<number>" and
+#   downloads the newest .exe asset to the current folder
+
+import sys, re, json, zipfile, subprocess, webbrowser, os
+from pathlib import Path
+from typing import Optional, Tuple, List, Dict, Any
+
+import requests
+
+# ---------------- Patcher self-version (for patcher updater) ----------------
+PATCHER_VERSION = 1  # <-- bump this when you publish a new patcher EXE release ("Patcher V1", V2, ...)
+
+# ---------------- Qt compatibility (PyQt6 preferred; PyQt5 fallback) -------
+try:
+    from PyQt6 import QtCore, QtGui, QtWidgets
+    QT6 = True
+except Exception:
+    from PyQt5 import QtCore, QtGui, QtWidgets
+    QT6 = False
+
+def qrectf(r: "QtCore.QRect") -> "QtCore.QRectF": return QtCore.QRectF(r)
+def align_center(): return (QtCore.Qt.AlignmentFlag.AlignCenter if QT6 else QtCore.Qt.AlignCenter)
+def align_left():   return (QtCore.Qt.AlignmentFlag.AlignLeft if QT6 else QtCore.Qt.AlignLeft)
+def pointing_cursor(): return (QtCore.Qt.CursorShape.PointingHandCursor if QT6 else QtCore.Qt.PointingHandCursor)
+def no_frame():     return (QtWidgets.QFrame.Shape.NoFrame if QT6 else QtWidgets.QFrame.NoFrame)
+def window_hint():  return (QtCore.Qt.WindowType.FramelessWindowHint if QT6 else QtCore.Qt.FramelessWindowHint)
+
+# ---------------- Paths & endpoints ----------------------------------------
+ROOT = Path.cwd()
+VERSION_INI = ROOT / "version.ini"
+GAME_EXE    = ROOT / "Endless.exe"
+
+DOWNLOADS_PAGES = [
+    "https://www.endless-online.com/downloads.html",
+    "https://www.endless-online.com/client/download.html",
+]
+NEWS_URL   = "https://raw.githubusercontent.com/HelloSpaghettiBot/News/main/news.json"
+SERVER_URL = "https://game.endless-online.com/server.html"
+
+# GitHub releases for the patcher itself
+RELEASES_API = "https://api.github.com/repos/HelloSpaghettiBot/News/releases"
+RELEASES_PAGE = "https://github.com/HelloSpaghettiBot/News/releases"
+
+HEADERS = {"User-Agent": "EO Python Patcher (Requests)"}
+
+# Links shown in the left column
+LINKS = [
+    ("RS Discord", "https://discord.gg/VxzBeP8waP"),
+    ("EO Dev Posts", "https://www.endless-online.com/devposts.html"),
+    ("Who's Online", "https://game.endless-online.com/playerlist.html"),
+    ("World Map", "https://www.endless-online.com/worldmap.html"),
+    ("Wiki", "https://endlessonlinerecharged.fandom.com/wiki/Endless_Online:_Recharged_Wiki"),
+    ("EORecharge Discord", "https://www.endless-online.com/link/endlessonlinerechargeddiscord.html"),
+    ("Download Patcher", "https://github.com/HelloSpaghettiBot/News/releases/tag/patcher"),
+    ("EO Guides", "https://www.eo-guides.com/"),
+    ("Vote Endless Online", "https://bbogd.net/game/endless-online/"),
+]
+
+# ---------------- Regex helpers --------------------------------------------
+RE_ZIP_HREF         = re.compile(r'href=["\']([^"\']*EndlessOnline[^"\']*?\.zip)["\']', re.I)
+RE_FOLDER_VERSION   = re.compile(r"/client/(\d+_\d+)/", re.I)
+RE_FILE_FOUR_DIGITS = re.compile(r"EndlessOnline.*?(\d{4})\.zip", re.I)
+
+Version3 = Tuple[int,int,int]
+
+# ---------------- Icon: half-moon ------------------------------------------
+def make_crescent_icon(size=24, fill="#f5e3b3", outline="#8c6b3a", carve_shift=0.35):
+    pix = QtGui.QPixmap(size, size)
+    if QT6: pix.fill(QtCore.Qt.GlobalColor.transparent)
+    else:   pix.fill(QtCore.Qt.transparent)
+    p = QtGui.QPainter(pix); p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+    r = size / 2; center = QtCore.QPointF(r, r)
+    p.setPen(QtGui.QPen(QtGui.QColor(outline), 1))
+    p.setBrush(QtGui.QBrush(QtGui.QColor(fill)))
+    p.drawEllipse(center, r - 1, r - 1)
+    p.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_Clear)
+    carve_r = r * 0.85
+    carve_center = QtCore.QPointF(r + (size * carve_shift * 0.6), r)
+    p.drawEllipse(carve_center, carve_r - 1, carve_r - 1)
+    p.end()
+    return QtGui.QIcon(pix)
+
+# ---------------- Version utilities ----------------------------------------
+def normalize_folder_version(s:str)->Tuple[int,int]:
+    try:
+        a,b=s.split("_",1); return int(a),int(b)
+    except: return (0,0)
+
+def parse_zip_digits(url:str)->Optional[Tuple[int,int]]:
+    m=RE_FILE_FOUR_DIGITS.search(url)
+    if not m: return None
+    d=m.group(1)  # e.g., 0447
+    return int(d[:2]), int(d[2:])
+
+def version3_from_str(vs:str)->Version3:
+    vs=vs.strip()
+    parts = vs.split("_") if "_" in vs else (vs.split(".") if "." in vs else re.findall(r"\d+",vs))
+    nums=[int(p) for p in parts if re.fullmatch(r"\d+",str(p))]
+    if len(nums)==0: return (0,0,0)
+    if len(nums)==1: return (nums[0],0,0)
+    if len(nums)==2: return (nums[0],nums[1],0)
+    return (nums[0],nums[1],nums[2])
+
+def cmp_v(a:Version3,b:Version3)->int: return (a>b)-(a<b)
+def vstr(v:Version3)->str: return f"{v[0]}_{v[1]:02d}_{v[2]:02d}"
+
+# ---------------- version.ini I/O ------------------------------------------
+def read_local_version()->Optional[Version3]:
+    if not VERSION_INI.exists(): return None
+    try:
+        txt=VERSION_INI.read_text(encoding="utf-8",errors="ignore")
+        m=re.search(r"^\s*(Number|Version)\s*=\s*([^\r\n]+)",txt,re.I|re.M)
+        raw=m.group(2).strip() if m else txt.strip()
+        return version3_from_str(raw)
+    except: return None
+
+def write_local_version(v:Version3):
+    VERSION_INI.write_text(f"[VERSION]\nNumber={vstr(v)}\n",encoding="utf-8")
+
+# ---------------- Game download/scrape -------------------------------------
+def find_latest_zip_and_version()->Tuple[str,Version3]:
+    last=None
+    for page in DOWNLOADS_PAGES:
+        try:
+            r=requests.get(page,headers=HEADERS,timeout=15); r.raise_for_status()
+            html=r.text
+            m=RE_ZIP_HREF.search(html)
+            if not m:
+                last=RuntimeError("No EndlessOnline zip link found"); continue
+            href=m.group(1)
+            if href.startswith("//"): zip_url="https:"+href
+            elif href.startswith("http"): zip_url=href
+            else:
+                from urllib.parse import urljoin
+                zip_url=urljoin(page,href)
+            maj,minr,patch=0,0,0
+            fm=RE_FOLDER_VERSION.search(zip_url)
+            if fm: maj,minr=normalize_folder_version(fm.group(1))
+            mp=parse_zip_digits(zip_url)
+            if mp: minr,patch=mp[0],mp[1]
+            return zip_url,(maj,minr,patch)
+        except Exception as e:
+            last=e; continue
+    raise (last or RuntimeError("Failed to discover client zip"))
+
+def stream_download(url: str, dest: Path, cb=None, chunk: int = 256*1024):
+    with requests.get(url, headers=HEADERS, stream=True, timeout=60) as r:
+        r.raise_for_status()
+        total=int(r.headers.get("Content-Length",0)) or 0
+        got=0
+        dest.parent.mkdir(parents=True,exist_ok=True)
+        with open(dest,"wb") as f:
+            for ch in r.iter_content(chunk_size=chunk):
+                if not ch: continue
+                f.write(ch); got += len(ch)
+                if cb:
+                    if total>0: cb(max(1,min(99,int(got*100/total))))
+                    else: cb(min(99, got//65536))
+
+def unzip_to_root(zip_path: Path, root: Path):
+    with zipfile.ZipFile(zip_path,"r") as z: z.extractall(root)
+
+# ---------------- News & Server status -------------------------------------
+def _badge(t: str) -> str:
+    t=(t or "").strip().lower()
+    if t=="event": return "<span style='background:#5a3b00;color:#ffcc66;padding:2px 6px;border-radius:4px'>EVENT</span>"
+    if t=="update":return "<span style='background:#003a5a;color:#77d0ff;padding:2px 6px;border-radius:4px'>UPDATE</span>"
+    if t=="info":  return "<span style='background:#224a22;color:#8ee08e;padding:2px 6px;border-radius:4px'>INFO</span>"
+    if t=="dev post": return "<span style='background:#2f2450;color:#c4b6ff;padding:2px 6px;border-radius:4px'>DEV&nbsp;POST</span>"
+    if t in ("test client","test"): return "<span style='background:#5a1d1d;color:#ffb3b3;padding:2px 6px;border-radius:4px'>TEST&nbsp;CLIENT</span>"
+    return ""
+
+def fetch_news_items() -> List[Dict[str, Any]]:
+    try:
+        r=requests.get(NEWS_URL,headers=HEADERS,timeout=12); r.raise_for_status()
+        payload=json.loads(r.text)
+    except Exception:
+        return [{"title":"<b>Unable to fetch news</b>","content":"Check your connection or feed URL.","date":"","type":"info"}]
+    items=[]
+    if isinstance(payload,dict) and isinstance(payload.get("news"),list):
+        for x in payload["news"]:
+            if not isinstance(x,dict): continue
+            items.append({
+                "title": str(x.get("title") or "Untitled"),
+                "content": str(x.get("content") or ""),
+                "date": str(x.get("date") or ""),
+                "type": str(x.get("type") or "")
+            })
+        return items[:25]
+    if isinstance(payload,list):
+        for x in payload:
+            if isinstance(x,dict):
+                items.append({"title":str(x.get("title","Untitled")),"content":str(x.get("content","")),"date":str(x.get("date","")),"type":str(x.get("type",""))})
+        return items[:25]
+    return [{"title":"<b>No news</b>","content":"","date":"","type":"info"}]
+
+def build_news_html(items: List[Dict[str, Any]]) -> str:
+    # only linkify plain URLs; keep provided <a> tags intact
+    url_re = re.compile(r'(?P<url>https?://[^\s<]+)', re.I)
+    def linkify_if_plain(text: str) -> str:
+        if "<a " in text.lower(): return text
+        return url_re.sub(lambda m: f"<a href='{m.group('url')}' target='_blank'>{m.group('url')}</a>", text)
+    blocks=[]
+    for it in items:
+        badge=_badge(it.get("type",""))
+        title=it.get("title","Untitled")
+        date=it.get("date","")
+        content=linkify_if_plain(it.get("content","") or "")
+        block="<div style='margin:10px 6px 12px 6px'>"
+        if badge: block += badge + " "
+        block += f"{title}"
+        if date: block += f" <span style='color:#ccb98d'>({date})</span>"
+        if content: block += f"<br>{content}"
+        block += "</div>"
+        blocks.append(block)
+    return "".join(blocks) if blocks else "<i>No news.</i>"
+
+def fetch_server_stats() -> Dict[str, Any]:
+    data = {
+        "status": "Unknown", "core_version": None, "mail_gateway": None,
+        "uptime": None, "players": None, "connections": None,
+        "most_session": None, "most_alltime": None, "generated_at": None,
+    }
+    try:
+        r = requests.get(SERVER_URL, headers=HEADERS, timeout=12)
+        r.raise_for_status()
+        html = r.text
+        plain = re.sub(r"<[^>]+>", " ", html).replace("&nbsp;"," ")
+        plain = re.sub(r"\s+"," ", plain).strip()
+
+        def after(label_regex: str, pat: str = r"(.+?)"):
+            m = re.search(label_regex + r"\s+" + pat, plain, re.I)
+            return m.group(1).strip() if m else None
+
+        s = after(r"server status", r"(online!?|offline!?)")
+        if s: data["status"] = s.capitalize()
+        data["core_version"] = after(r"server core version", r"([0-9][0-9\.]+)")
+        mg = after(r"mail gateway", r"(online!?|offline!?)")
+        if mg: data["mail_gateway"] = mg.capitalize()
+        data["uptime"] = after(r"server uptime\s*\(hours\)", r"([0-9h\. m]+)")
+        cc = after(r"current connections", r"([0-9]+)")
+        data["connections"] = int(cc) if cc and cc.isdigit() else None
+        po = after(r"current online players", r"([0-9]+)")
+        if po and po.isdigit(): data["players"] = int(po)
+        else:
+            ph = re.search(r"\.\.\s*([0-9]+)\s*Players!", plain, re.I)
+            data["players"] = int(ph.group(1)) if ph else None
+        ms = after(r"most online,\s*session", r"([0-9]+)")
+        data["most_session"] = int(ms) if ms and ms.isdigit() else None
+        ma = after(r"most online,\s*alltime", r"([0-9]+)")
+        data["most_alltime"] = int(ma) if ma and ma.isdigit() else None
+        gt = after(r"generated by the game-server on:", r"([0-9/: ]+[APMapm\.]*)")
+        data["generated_at"] = gt
+    except Exception:
+        pass
+    return data
+
+# ---------------- Patcher release check (EXE) -------------------------------
+def find_latest_patcher_exe(current_ver: int) -> Optional[Dict[str, str]]:
+    """
+    Return dict with {'version': 'N', 'name': asset_name, 'url': browser_download_url, 'html_url': release_page}
+    for the newest release titled 'Patcher V<number>' with a .exe asset and number > current_ver.
+    If nothing matches, return None.
+    """
+    try:
+        r = requests.get(RELEASES_API, headers=HEADERS, timeout=15)
+        r.raise_for_status()
+        releases = r.json()
+    except Exception:
+        return None
+
+    best = None
+    best_num = current_ver
+    for rel in releases:
+        title = (rel.get("name") or rel.get("tag_name") or "").strip()
+        m = re.match(r"Patcher\s+V(\d+)", title, re.I)
+        if not m:  # skip non-patcher releases
+            continue
+        ver = int(m.group(1))
+        if ver <= best_num:
+            continue
+        assets = rel.get("assets", [])
+        exe_asset = None
+        for a in assets:
+            n = a.get("name","").lower()
+            if n.endswith(".exe"):
+                exe_asset = a
+                break
+        if exe_asset:
+            best = {
+                "version": str(ver),
+                "name": exe_asset.get("name","EndlessOnlinePatcher.exe"),
+                "url": exe_asset.get("browser_download_url"),
+                "html_url": rel.get("html_url", RELEASES_PAGE),
+            }
+            best_num = ver
+    return best
+
+# ---------------- Workers (threads) ----------------------------------------
+class CheckWorker(QtCore.QObject):
+    progress = QtCore.pyqtSignal(int)
+    status   = QtCore.pyqtSignal(str)
+    done     = QtCore.pyqtSignal(bool, str)
+
+    @QtCore.pyqtSlot()
+    def run(self):
+        try:
+            self.status.emit("Checking local version ...")
+            local=read_local_version() or (0,0,0)
+            self.status.emit("Finding latest client ...")
+            zip_url, remote_v = find_latest_zip_and_version()
+            if cmp_v(local, remote_v) < 0:
+                self.done.emit(True, f"UPDATE::{zip_url}::{vstr(remote_v)}")
+            else:
+                self.progress.emit(100)
+                self.done.emit(True, "OK::Up-to-date")
+        except Exception as e:
+            self.done.emit(False, f"Error: {e}")
+
+class InstallWorker(QtCore.QObject):
+    progress = QtCore.pyqtSignal(int)
+    status   = QtCore.pyqtSignal(str)
+    done     = QtCore.pyqtSignal(bool, str)
+    def __init__(self, zip_url: str, version: Version3):
+        super().__init__(); self.zip_url=zip_url; self.version=version
+    @QtCore.pyqtSlot()
+    def run(self):
+        try:
+            self.status.emit("Downloading client ...")
+            tmp=ROOT/"eo_client_tmp.zip"
+            stream_download(self.zip_url,tmp,cb=self.progress.emit)
+            self.status.emit("Applying update ...")
+            unzip_to_root(tmp,ROOT)
+            try: tmp.unlink()
+            except: pass
+            self.status.emit("Writing version.ini ...")
+            write_local_version(self.version)
+            self.progress.emit(100)
+            self.done.emit(True,"Update complete.")
+        except Exception as e:
+            self.done.emit(False,f"Error: {e}")
+
+class PatcherDownloadWorker(QtCore.QObject):
+    """Download new patcher EXE asset."""
+    progress = QtCore.pyqtSignal(int)
+    status   = QtCore.pyqtSignal(str)
+    done     = QtCore.pyqtSignal(bool, str, str)  # ok, message, saved_path
+
+    def __init__(self, url: str, save_as: Path):
+        super().__init__(); self.url=url; self.save_as=save_as
+
+    @QtCore.pyqtSlot()
+    def run(self):
+        try:
+            self.status.emit("Downloading patcher ...")
+            stream_download(self.url, self.save_as, cb=self.progress.emit)
+            self.progress.emit(100)
+            self.done.emit(True, f"Downloaded: {self.save_as.name}", str(self.save_as))
+        except Exception as e:
+            self.done.emit(False, f"Error: {e}", "")
+
+# ---------------- Wood visuals ---------------------------------------------
+class WoodFrame(QtWidgets.QFrame):
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
+        self.border_color = QtGui.QColor("#5c4325")
+        self.inner_border = QtGui.QColor(60, 40, 20, 160)
+        self.setAutoFillBackground(True)
+        pal = self.palette(); pal.setColor(self.backgroundRole(), QtGui.QColor("#1a1410")); self.setPalette(pal)
+
+    def paintEvent(self, _):
+        p = QtGui.QPainter(self)
+        p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing, True)
+        grad = QtGui.QLinearGradient(0, 0, 0, self.height())
+        grad.setColorAt(0.0, QtGui.QColor("#3a2a17"))
+        grad.setColorAt(0.5, QtGui.QColor("#4a341d"))
+        grad.setColorAt(1.0, QtGui.QColor("#3a2816"))
+        rectf = qrectf(self.rect().adjusted(0,0,-1,-1))
+        p.fillRect(rectf, grad)
+        p.setPen(QtGui.QPen(self.border_color, 1)); p.drawRect(rectf)
+        p.setOpacity(0.08)
+        stripe = QtGui.QLinearGradient(0, 0, 0, self.height())
+        stripe.setColorAt(0, QtGui.QColor(255,255,255,20)); stripe.setColorAt(1, QtGui.QColor(0,0,0,20))
+        p.setBrush(stripe)
+        p.setPen(QtCore.Qt.PenStyle.NoPen if QT6 else QtCore.Qt.NoPen)
+        for x in range(8, self.width(), 18): p.drawRect(x, 6, 8, self.height()-12)
+        p.setOpacity(1.0)
+        p.setPen(QtGui.QPen(self.inner_border, 1)); innerf = qrectf(self.rect().adjusted(4,4,-4,-4)); p.drawRect(innerf)
+
+class TitleBar(WoodFrame):
+    def __init__(self, parent=None, title="Endless Online Patcher"):
+        super().__init__(parent)
+        self._parent = parent; self._drag_pos = None
+        self.setFixedHeight(40)
+        self.iconLabel = QtWidgets.QLabel()
+        icon = make_crescent_icon(22); self.iconLabel.setPixmap(icon.pixmap(20, 20))
+        self.titleLabel = QtWidgets.QLabel(title)
+        self.titleLabel.setStyleSheet("color:#f5e3b3; font-weight:700;")
+        self.titleLabel.setAlignment(align_left())
+
+        self.btnMin = QtWidgets.QPushButton("—")
+        self.btnMax = QtWidgets.QPushButton("▢")
+        self.btnClose = QtWidgets.QPushButton("✕")
+        for b in (self.btnMin, self.btnMax, self.btnClose):
+            b.setFixedSize(28, 24); b.setCursor(pointing_cursor())
+            b.setStyleSheet("""
+                QPushButton { color:#f3e8ce; background:#6c4b26; border:1px solid #7a562b; border-radius:4px; }
+                QPushButton:hover { border-color:#d4b277; }
+                QPushButton:pressed { background:#533a1c; border-color:#f0d89a; }
+            """)
+        self.btnClose.setStyleSheet("""
+            QPushButton { color:#2b1b07; background:#c47a3a; border:1px solid #e3c17a; border-radius:4px; font-weight:700;}
+            QPushButton:hover { background:#d58b4b; border-color:#ffe7a8; }
+            QPushButton:pressed { background:#9d5c27; }
+        """)
+
+        lay = QtWidgets.QHBoxLayout(self); lay.setContentsMargins(8,6,8,6); lay.setSpacing(8)
+        lay.addWidget(self.iconLabel, 0); lay.addWidget(self.titleLabel, 1)
+        lay.addWidget(self.btnMin, 0); lay.addWidget(self.btnMax, 0); lay.addWidget(self.btnClose, 0)
+        self.btnMin.clicked.connect(lambda: self._parent.showMinimized() if self._parent else None)
+        self.btnMax.clicked.connect(self._toggle_max)
+        self.btnClose.clicked.connect(lambda: self._parent.close() if self._parent else None)
+
+    def _toggle_max(self):
+        if not self._parent: return
+        ws = self._parent.windowState()
+        if QT6:
+            if ws & QtCore.Qt.WindowState.WindowMaximized: self._parent.showNormal()
+            else: self._parent.showMaximized()
+        else:
+            if ws & QtCore.Qt.WindowMaximized: self._parent.showNormal()
+            else: self._parent.showMaximized()
+
+    def mousePressEvent(self, e):
+        left = (QtCore.Qt.MouseButton.LeftButton if QT6 else QtCore.Qt.LeftButton)
+        if e.button() == left:
+            gp = e.globalPosition() if QT6 else e.globalPos()
+            self._drag_pos = gp
+
+    def mouseMoveEvent(self, e):
+        if self._drag_pos is None or not self._parent: return
+        gp = e.globalPosition() if QT6 else e.globalPos(); delta = gp - self._drag_pos
+        if QT6: self._parent.move(self._parent.pos() + QtCore.QPoint(int(delta.x()), int(delta.y())))
+        else:   self._parent.move(self._parent.pos() + delta)
+        self._drag_pos = gp
+
+    def mouseReleaseEvent(self, _): self._drag_pos=None
+    def mouseDoubleClickEvent(self, _): self._toggle_max()
+
+# ---------------- Font loader (Player Two) ----------------------------------
+def install_player_two() -> str:
+    urls = [
+        "https://github.com/google/fonts/raw/main/ofl/playertwo/PlayerTwo-Regular.ttf",
+        "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/playertwo/PlayerTwo-Regular.ttf",
+    ]
+    for url in urls:
+        try:
+            resp = requests.get(url, headers=HEADERS, timeout=10); resp.raise_for_status()
+            fid = QtGui.QFontDatabase.addApplicationFontFromData(QtCore.QByteArray(resp.content))
+            if fid != -1:
+                fams = QtGui.QFontDatabase.applicationFontFamilies(fid)
+                if fams: return fams[0]
+        except Exception: continue
+    return ""
+
+# ---------------- Main Window ----------------------------------------------
+class MainWindow(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowFlags(self.windowFlags() | window_hint())
+        self.setWindowTitle("Endless Online Patcher")
+        self.setMinimumSize(1000, 620)
+        self.setWindowIcon(make_crescent_icon(28))
+        self.setAutoFillBackground(True)
+        pal = self.palette(); pal.setColor(self.backgroundRole(), QtGui.QColor("#1a1410")); self.setPalette(pal)
+
+        self.shadowEffect = QtWidgets.QGraphicsDropShadowEffect(self)
+        self.shadowEffect.setBlurRadius(18); self.shadowEffect.setOffset(0, 2)
+        self.shadowEffect.setColor(QtGui.QColor(0,0,0,180))
+
+        self.titleBar = TitleBar(self, "Endless Online Patcher")
+        self.rootWood = WoodFrame(objectName="rootWood"); self.rootWood.setGraphicsEffect(self.shadowEffect)
+
+        # Left column links (wider so text doesn't clip)
+        linkFrame = WoodFrame(); linkFrame.setFixedWidth(270)
+        linkLayout = QtWidgets.QVBoxLayout(linkFrame); linkLayout.setContentsMargins(10,10,10,10); linkLayout.setSpacing(8)
+        self.linkScroll = QtWidgets.QScrollArea(); self.linkScroll.setWidgetResizable(True); self.linkScroll.setFrameShape(no_frame())
+        self.linkScroll.setStyleSheet("QScrollArea, QScrollArea QWidget { background-color: #2e1f10; }")
+        inner = QtWidgets.QWidget(); innerLay = QtWidgets.QVBoxLayout(inner); innerLay.setContentsMargins(0,0,0,0); innerLay.setSpacing(8)
+        for label, url in LINKS:
+            b = QtWidgets.QPushButton(label); b.clicked.connect(lambda _=False, u=url: webbrowser.open(u))
+            b.setObjectName("linkBtn"); b.setCursor(pointing_cursor()); innerLay.addWidget(b)
+        innerLay.addStretch(1); self.linkScroll.setWidget(inner); linkLayout.addWidget(self.linkScroll)
+
+        # Center: News panel
+        self.centerPanel = WoodFrame()
+        cLay = QtWidgets.QGridLayout(self.centerPanel)
+        cLay.setContentsMargins(14,14,14,14); cLay.setHorizontalSpacing(10); cLay.setVerticalSpacing(10)
+        self.newsTitle = QtWidgets.QLabel("News", objectName="sectionTitle")
+        self.newsBox   = QtWidgets.QTextBrowser(objectName="newsBox"); self.newsBox.setOpenExternalLinks(True)
+        self.btnNews   = QtWidgets.QPushButton("Refresh News"); self.btnNews.setObjectName("woodBtn")
+        cLay.addWidget(self.newsTitle, 0,0); cLay.addWidget(self.newsBox, 1,0); cLay.addWidget(self.btnNews, 2,0, align_left())
+
+        # Right: Server panel (grid labels)
+        self.rightCard = WoodFrame(); self.rightCard.setFixedWidth(340)
+        grid = QtWidgets.QGridLayout(self.rightCard); grid.setContentsMargins(14,14,14,14); grid.setHorizontalSpacing(10); grid.setVerticalSpacing(6)
+        title = QtWidgets.QLabel("Server", objectName="sectionTitle"); title.setAlignment(align_left()); grid.addWidget(title, 0,0,1,2)
+
+        def label_cell(txt, bold=False):
+            l = QtWidgets.QLabel(txt); l.setStyleSheet("color:#f5e3b3; font-weight:700;" if bold else "color:#e8dcc2;"); return l
+        def value_cell():
+            l = QtWidgets.QLabel("—"); l.setObjectName("serverText"); l.setAlignment(align_left()); return l
+
+        row=1
+        grid.addWidget(label_cell("Status", True), row,0); self.valStatus=value_cell(); grid.addWidget(self.valStatus,row,1); row+=1
+        grid.addWidget(label_cell("Core version", True), row,0); self.valCore=value_cell(); grid.addWidget(self.valCore,row,1); row+=1
+        grid.addWidget(label_cell("Mail gateway", True), row,0); self.valMail=value_cell(); grid.addWidget(self.valMail,row,1); row+=1
+        grid.addWidget(label_cell("Uptime", True), row,0); self.valUptime=value_cell(); grid.addWidget(self.valUptime,row,1); row+=1
+        grid.addWidget(label_cell("Connections", True), row,0); self.valConn=value_cell(); grid.addWidget(self.valConn,row,1); row+=1
+        grid.addWidget(label_cell("Players online", True), row,0); self.valPlayers=value_cell(); grid.addWidget(self.valPlayers,row,1); row+=1
+        grid.addWidget(label_cell("Most online (session)", True), row,0); self.valMostSess=value_cell(); grid.addWidget(self.valMostSess,row,1); row+=1
+        grid.addWidget(label_cell("Most online (all-time)", True), row,0); self.valMostAll=value_cell(); grid.addWidget(self.valMostAll,row,1); row+=1
+        grid.addWidget(label_cell("Generated at", True), row,0); self.valGenAt=value_cell(); grid.addWidget(self.valGenAt,row,1); row+=1
+        self.btnSrvRefresh = QtWidgets.QPushButton("Refresh Server"); self.btnSrvRefresh.setObjectName("woodBtn"); grid.addWidget(self.btnSrvRefresh,row,0,1,2)
+
+        # Bottom rail
+        self.status_lbl = QtWidgets.QLabel("Ready.", objectName="statusText")
+        self.progress   = QtWidgets.QProgressBar(); self.progress.setRange(0,100); self.progress.setTextVisible(False)
+        self.btnUpdate  = QtWidgets.QPushButton("Check / Update"); self.btnUpdate.setObjectName("woodBtn")
+        self.btnPatcher = QtWidgets.QPushButton(f"Update Patcher (V{PATCHER_VERSION})"); self.btnPatcher.setObjectName("woodBtn")
+        self.btnLaunch  = QtWidgets.QPushButton("START"); self.btnLaunch.setEnabled(False); self.btnLaunch.setObjectName("startBtn")
+
+        mid = QtWidgets.QHBoxLayout(); mid.setContentsMargins(8,8,8,8); mid.setSpacing(10)
+        mid.addWidget(linkFrame,0); mid.addWidget(self.centerPanel,1); mid.addWidget(self.rightCard,0)
+
+        bottom1 = QtWidgets.QHBoxLayout(); bottom1.setContentsMargins(8,0,8,0)
+        bottom1.addWidget(self.status_lbl,2); bottom1.addWidget(self.progress,5)
+
+        bottom2 = QtWidgets.QHBoxLayout(); bottom2.setContentsMargins(8,0,8,8)
+        bottom2.addStretch(1); bottom2.addWidget(self.btnPatcher); bottom2.addWidget(self.btnUpdate); bottom2.addWidget(self.btnLaunch)
+
+        contentLay = QtWidgets.QVBoxLayout(self.rootWood)
+        contentLay.setContentsMargins(0,0,0,0); contentLay.setSpacing(6)
+        contentLay.addLayout(mid,1); contentLay.addLayout(bottom1); contentLay.addLayout(bottom2)
+
+        outer = QtWidgets.QVBoxLayout(self)
+        outer.setContentsMargins(6,6,6,6); outer.setSpacing(0)
+        outer.addWidget(self.titleBar); outer.addWidget(self.rootWood,1)
+
+        # Size grip
+        self.sizeGrip = QtWidgets.QSizeGrip(self.rootWood)
+        sg_lay = QtWidgets.QHBoxLayout()
+        sg_align = (QtCore.Qt.AlignmentFlag.AlignBottom | QtCore.Qt.AlignmentFlag.AlignRight) if QT6 else (QtCore.Qt.AlignBottom | QtCore.Qt.AlignRight)
+        sg_lay.addStretch(1); sg_lay.addWidget(self.sizeGrip, 0, sg_align)
+        contentLay.addLayout(sg_lay)
+
+        # Install Player Two font (fallback Arial)
+        retro_family = install_player_two()
+        retro_stack_titles  = f"'{retro_family}', Arial" if retro_family else "Arial"
+        retro_stack_buttons = retro_stack_titles
+
+        # Styles
+        self.setStyleSheet(f"""
+            QWidget#rootWood {{ background: #1a1410; border-radius: 0px; }}
+            QLabel, QTextBrowser {{ color: #e8dcc2; }}
+
+            #sectionTitle {{
+                font-family: {retro_stack_titles};
+                font-size: 16px;
+                font-weight: 700;
+                color: #f5e3b3;
+                padding: 0px 2px;
+            }}
+            #statusText {{ color: #f0d89a; }}
+            #serverText {{ color: #f2e6c9; }}
+
+            QTextBrowser#newsBox {{
+                background: rgba(15,10,5,120);
+                border: 1px solid #60431e;
+                border-radius: 0px;
+                padding: 8px;
+            }}
+            QTextBrowser#newsBox a,
+            QTextBrowser#newsBox a:link,
+            QTextBrowser#newsBox a:visited {{ color: #f3e8ce; text-decoration: underline; }}
+            QTextBrowser#newsBox a:hover {{ color: #fff2d0; }}
+
+            QScrollArea, QScrollArea QWidget {{ background-color: #2e1f10; }}
+            QScrollBar:vertical {{ background: transparent; width: 10px; margin: 0px; }}
+            QScrollBar::handle:vertical {{ background: #6a4a26; min-height: 20px; border-radius: 4px; }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0px; }}
+
+            QPushButton {{
+                font-family: {retro_stack_buttons};
+                font-size: 11px;
+                color: #f3e8ce;
+                background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #6c4b26, stop:1 #503717);
+                border: 1px solid #7a562b;
+                padding: 6px 10px;
+                min-height: 26px;
+                border-radius: 4px;
+            }}
+            QPushButton:hover {{ border-color: #d4b277; }}
+            QPushButton:pressed {{
+                background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #533a1c, stop:1 #3d2a12);
+                border-color: #f0d89a;
+            }}
+
+            QPushButton#startBtn {{
+                font-size: 12px;
+                font-weight: 700; letter-spacing: 0.5px;
+                padding: 8px 16px;
+                min-width: 92px;
+                background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #b6842e, stop:1 #8f641f);
+                border: 1px solid #e3c17a; color: #2b1b07;
+            }}
+            QPushButton#startBtn:hover {{ border-color:#ffe7a8; }}
+            QPushButton#startBtn:pressed {{
+                background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #925f19, stop:1 #744910);
+            }}
+
+            QPushButton#linkBtn {{
+                font-family: {retro_stack_buttons};
+                font-size: 10px;
+                text-align: left;
+                padding: 6px 8px;
+                min-height: 24px;
+            }}
+
+            QProgressBar {{
+                background: rgba(15,10,5,120);
+                border: 1px solid #60431e;
+                border-radius: 0px; height: 14px;
+            }}
+            QProgressBar::chunk {{ background: #caa25b; }}
+        """)
+
+        # Signals
+        self.btnNews.clicked.connect(self.load_news)
+        self.btnSrvRefresh.clicked.connect(self.update_server_status)
+        self.btnUpdate.clicked.connect(self.start_check)
+        self.btnPatcher.clicked.connect(self.check_patcher_update)
+        self.btnLaunch.clicked.connect(self.launch_game)
+
+        # Auto on open
+        QtCore.QTimer.singleShot(200, self.load_news)
+        QtCore.QTimer.singleShot(260, self.update_server_status)
+        QtCore.QTimer.singleShot(320, self.start_check)
+
+    # -------- Actions (game update flow) --------
+    def set_status(self, text:str): self.status_lbl.setText(text)
+
+    def start_check(self):
+        self.btnUpdate.setEnabled(False)
+        self.set_status("Starting update check ...")
+        self.thread = QtCore.QThread(self)
+        self.worker = CheckWorker()
+        self.worker.moveToThread(self.thread)
+        self.worker.progress.connect(self.progress.setValue)
+        self.worker.status.connect(self.set_status)
+        self.worker.done.connect(self.on_check_done)
+        self.thread.started.connect(self.worker.run)
+        self.thread.start()
+
+    def on_check_done(self, ok: bool, msg: str):
+        try: self.thread.quit(); self.thread.wait()
+        except Exception: pass
+        self.btnUpdate.setEnabled(True)
+        self.progress.setValue(100 if ok else 0)
+
+        if not ok:
+            QtWidgets.QMessageBox.critical(self, "Error", msg); self.set_status(msg); return
+
+        kind, payload = msg.split("::",1)
+        if kind == "UPDATE":
+            zip_url, ver_str = payload.split("::",1)
+            ask = QtWidgets.QMessageBox.question(
+                self, "Update available",
+                f"A new client ({ver_str}) is available.\nDownload and install now?",
+                (QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
+                if QT6 else (QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+            )
+            yes = (QtWidgets.QMessageBox.StandardButton.Yes if QT6 else QtWidgets.QMessageBox.Yes)
+            if ask == yes:
+                v = version3_from_str(ver_str)
+                self.install(zip_url, v)
+            else:
+                self.set_status("Update skipped by user.")
+                self.btnLaunch.setEnabled(GAME_EXE.exists())
+        else:
+            self.set_status("Up-to-date")
+            self.btnLaunch.setEnabled(GAME_EXE.exists())
+
+    def install(self, zip_url: str, v: Version3):
+        self.btnUpdate.setEnabled(False)
+        self.set_status("Preparing download ...")
+        self.thread2 = QtCore.QThread(self)
+        self.inst = InstallWorker(zip_url, v)
+        self.inst.moveToThread(self.thread2)
+        self.inst.progress.connect(self.progress.setValue)
+        self.inst.status.connect(self.set_status)
+        self.inst.done.connect(self.on_install_done)
+        self.thread2.started.connect(self.inst.run)
+        self.thread2.start()
+
+    def on_install_done(self, ok: bool, msg: str):
+        try: self.thread2.quit(); self.thread2.wait()
+        except Exception: pass
+        self.btnUpdate.setEnabled(True)
+        self.set_status(msg)
+        self.progress.setValue(100 if ok else 0)
+        if ok:
+            QtWidgets.QMessageBox.information(self, "Update Complete", "Client updated successfully.")
+            self.btnLaunch.setEnabled(True)
+        else:
+            QtWidgets.QMessageBox.critical(self, "Error", msg)
+
+    # -------- Patcher updater --------
+    def check_patcher_update(self):
+        self.set_status("Checking patcher releases ...")
+        info = find_latest_patcher_exe(PATCHER_VERSION)
+        if not info:
+            QtWidgets.QMessageBox.information(self, "No Update",
+                "No newer 'Patcher V…' release with a .exe asset was found.\nOpening releases page.")
+            webbrowser.open(RELEASES_PAGE)
+            return
+
+        ver = info["version"]; name = info["name"]; url = info["url"]
+        ask = QtWidgets.QMessageBox.question(
+            self, "Patcher Update",
+            f"New patcher available: V{ver}\n\nDownload {name} now?",
+            (QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
+            if QT6 else (QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+        )
+        yes = (QtWidgets.QMessageBox.StandardButton.Yes if QT6 else QtWidgets.QMessageBox.Yes)
+        if ask != yes:
+            self.set_status("Patcher update canceled."); return
+
+        save_as = ROOT / f"EndlessOnlinePatcher_V{ver}.exe"
+        # Start threaded download using bottom progress bar
+        self.thread3 = QtCore.QThread(self)
+        self.pdl = PatcherDownloadWorker(url, save_as)
+        self.pdl.moveToThread(self.thread3)
+        self.pdl.progress.connect(self.progress.setValue)
+        self.pdl.status.connect(self.set_status)
+        self.pdl.done.connect(self.on_patcher_download_done)
+        self.thread3.started.connect(self.pdl.run)
+        self.thread3.start()
+
+    def on_patcher_download_done(self, ok: bool, msg: str, saved_path: str):
+        try: self.thread3.quit(); self.thread3.wait()
+        except Exception: pass
+        self.set_status(msg)
+        self.progress.setValue(100 if ok else 0)
+        if not ok:
+            QtWidgets.QMessageBox.critical(self, "Patcher Update", msg)
+            return
+        dest = Path(saved_path)
+        choice = QtWidgets.QMessageBox.question(
+            self, "Patcher Downloaded",
+            f"Saved: {dest.name}\n\nOpen folder or run it now?",
+            (QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No |
+             QtWidgets.QMessageBox.StandardButton.Cancel) if QT6
+            else (QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No | QtWidgets.QMessageBox.Cancel)
+        )
+        # Map choices: Yes=open folder, No=run exe, Cancel=do nothing
+        yes = QtWidgets.QMessageBox.StandardButton.Yes if QT6 else QtWidgets.QMessageBox.Yes
+        no  = QtWidgets.QMessageBox.StandardButton.No  if QT6 else QtWidgets.QMessageBox.No
+        if choice == yes:
+            # open folder in explorer, selecting file
+            if sys.platform.startswith("win"):
+                subprocess.Popen(f'explorer /select,"{str(dest)}"')
+            else:
+                webbrowser.open(f"file://{str(dest.parent)}")
+        elif choice == no:
+            try:
+                if sys.platform.startswith("win"):
+                    os.startfile(str(dest))  # type: ignore[attr-defined]
+                else:
+                    subprocess.Popen([str(dest)])
+            except Exception as e:
+                QtWidgets.QMessageBox.warning(self, "Run Failed", str(e))
+
+    # -------- Misc --------
+    def launch_game(self):
+        if not GAME_EXE.exists():
+            QtWidgets.QMessageBox.warning(self, "Not Found", "Endless.exe not found in this folder."); return
+        try:
+            if sys.platform.startswith("win"):
+                subprocess.Popen([str(GAME_EXE)], cwd=str(ROOT))
+            else:
+                try: subprocess.Popen(["wine", str(GAME_EXE)], cwd=str(ROOT))
+                except Exception: subprocess.Popen([str(GAME_EXE)], cwd=str(ROOT))
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "Launch Error", str(e))
+
+    def load_news(self):
+        items = fetch_news_items()
+        self.newsBox.setHtml(build_news_html(items))
+
+    def update_server_status(self):
+        stats = fetch_server_stats()
+        def colored(val, good="Online", bad="Offline"):
+            if not isinstance(val, str): return "<span style='color:#e6d4a8'>Unknown</span>"
+            v = val.strip(" !")
+            if v.lower().startswith(good.lower()):   return f"<b><span style='color:#9fe087'>{val}</span></b>"
+            if v.lower().startswith(bad.lower()):    return f"<b><span style='color:#e08b8b'>{val}</span></b>"
+            return f"<span style='color:#e6d4a8'>{val}</span>"
+        self.valStatus.setText(colored(stats.get("status","Unknown")))
+        self.valCore.setText(stats.get("core_version") or "—")
+        self.valMail.setText(colored(stats.get("mail_gateway") or "Unknown"))
+        self.valUptime.setText(stats.get("uptime") or "—")
+        conn = stats.get("connections"); self.valConn.setText(f"{conn:,}" if isinstance(conn,int) else "—")
+        players = stats.get("players"); self.valPlayers.setText(f"{players:,}" if isinstance(players,int) else "—")
+        ms = stats.get("most_session"); self.valMostSess.setText(f"{ms:,}" if isinstance(ms,int) else "—")
+        ma = stats.get("most_alltime"); self.valMostAll.setText(f"{ma:,}" if isinstance(ma,int) else "—")
+        self.valGenAt.setText(stats.get("generated_at") or "—")
+
+# ---------------- Entry -----------------------------------------------------
+def main():
+    app = QtWidgets.QApplication(sys.argv)
+    if QT6:
+        QtWidgets.QApplication.setHighDpiScaleFactorRoundingPolicy(
+            QtCore.Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
+        )
+    w = MainWindow(); w.show()
+    if QT6: sys.exit(app.exec())
+    else:   sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    main()
