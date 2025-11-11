@@ -75,3 +75,14 @@ pre.wrap-json{ white-space: pre-wrap; word-wrap: break-word; overflow-x: auto; }
   background:rgba(0,0,0,.7); border:1px solid var(--ring-red); color:#fff; padding:.55rem .75rem; border-radius:.5rem;
 }
 .small { font-size:.9rem; opacity:.9; }
+/* assets/site.css — add anywhere */
+#videosContainer,
+#downloadsContainer,
+.cards-grid {
+  align-items: start;         /* don’t stretch items to row height */
+}
+
+.card {
+  align-self: start;          /* each card keeps its own height */
+}
+
