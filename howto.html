@@ -7,6 +7,11 @@
   <title>EOBots • How To</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="assets/site.css" />
+  <style>
+    /* keep cards from expanding to match tallest neighbor */
+    #videosContainer { align-items:start; }
+    .card { align-self:start; }
+  </style>
 </head>
 <body class="bg-grid">
   <nav class="nav">
@@ -39,11 +44,11 @@
           <p class="text-white/80">Learn how to find NPC addresses.</p>
           <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
             <div class="shell shell-70">
-              <iframe class="w-full h-full defer-embed"
+              <!-- Reverted to standard YouTube embed with direct src -->
+              <iframe class="w-full h-full"
                       loading="lazy"
-                      src=""
-                      data-src="https://www.youtube.com/embed/iTLIuEHOfd4?si=ONAaS13zwQDKNSgP"
-                      title="YouTube"
+                      src="https://www.youtube.com/embed/iTLIuEHOfd4?si=ONAaS13zwQDKNSgP"
+                      title="Finding NPC Address"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       referrerpolicy="strict-origin-when-cross-origin"
                       allowfullscreen></iframe>
@@ -56,11 +61,10 @@
           <p class="text-white/80">Step-by-step setup tutorial.</p>
           <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
             <div class="shell shell-70">
-              <iframe class="w-full h-full defer-embed"
+              <iframe class="w-full h-full"
                       loading="lazy"
-                      src=""
-                      data-src="https://www.youtube.com/embed/ysz5S6PUM-U"
-                      title="YouTube"
+                      src="https://www.youtube.com/embed/ysz5S6PUM-U"
+                      title="Configuring CaptchaBot"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       referrerpolicy="strict-origin-when-cross-origin"
                       allowfullscreen></iframe>
@@ -73,11 +77,10 @@
           <p class="text-white/80">Guide to using the WalkPath Recorder.</p>
           <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
             <div class="shell shell-70">
-              <iframe class="w-full h-full defer-embed"
+              <iframe class="w-full h-full"
                       loading="lazy"
-                      src=""
-                      data-src="https://www.youtube.com/embed/eIP6LVxiPqw?si=iVTs-2GNDcT5j953"
-                      title="YouTube"
+                      src="https://www.youtube.com/embed/eIP6LVxiPqw?si=iVTs-2GNDcT5j953"
+                      title="Recording Routes"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       referrerpolicy="strict-origin-when-cross-origin"
                       allowfullscreen></iframe>
