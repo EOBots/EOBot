@@ -27,19 +27,18 @@
 
       <div class="page-spacer"><div class="core"></div></div>
 
-      <!-- Give this grid a scope so only its cards are affected -->
+      <!-- Scoped grid + no stretch -->
       <div id="videosContainer"
            data-card-scope
            data-accordion="false"
            class="container"
-           style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));">
+           style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));align-items:start">
 
         <div class="card" onclick="toggleCard(this)">
           <h3 class="text-xl font-bold mb-1">Finding NPC Address</h3>
           <p class="text-white/80">Learn how to find NPC addresses.</p>
           <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
             <div class="shell shell-70">
-              <!-- lazy via assets/site.js IO: use defer-embed + data-src -->
               <iframe class="w-full h-full defer-embed"
                       loading="lazy"
                       src=""
