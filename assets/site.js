@@ -1,44 +1,107 @@
+/* assets/site.js
+   EOBots – unified site logic
+   - Nav active state
+   - Card toggling (scoped; never open all)
+   - Lazy iframes (data-src on .defer-embed inside .shell/.shell-70/.shell-80)
+   - EOR page init
+   - Downloads page (search + categories + ?q sync + accent-insensitive + highlight)
+   - HowTo page (videos.json -> cards with lazy YouTube embeds)
+*/
 
-// Nav active state
+/* ---------------------------
+   Nav active state
+---------------------------- */
 (function(){
   const path = location.pathname.split('/').pop() || 'index.html';
   document.querySelectorAll('.nav a').forEach(a=>{
     const href = a.getAttribute('href');
-    if (href === path || (path==='index.html' && href==='index.html')) {
+    if (href === path || (path === 'index.html' && href === 'index.html')) {
       a.classList.add('active');
     }
   });
 })();
 
-// Toggle cards
-function toggleCard(cardEl){
-  document.querySelectorAll('.card').forEach(c=>{ if(c!==cardEl) collapseCard(c); });
-  const body=cardEl.querySelector('.card-body'); if(!body) return;
-  const open = body.classList.contains('hidden');
-  if(open){ body.classList.remove('hidden'); cardEl.classList.add('expanded'); }
-  else    { collapseCard(cardEl); }
-}
-function collapseCard(cardEl){
-  const body=cardEl.querySelector('.card-body'); if(!body||body.classList.contains('hidden'))return;
-  const iframe=body.querySelector('iframe'); if(iframe){ const s=iframe.src; iframe.src=s; }
-  body.classList.add('hidden'); cardEl.classList.remove('expanded');
+/* ---------------------------
+   Card toggling (scoped)
+   - NEVER opens every card
+   - Optional accordion per container: set data-accordion="true"
+   - Scope is nearest [data-card-scope] (or a known grid id) so different sections don’t interfere
+---------------------------- */
+const ACCORDION_DEFAULT = false; // set true if you want one-open-by-default everywhere
+
+function getCardScope(cardEl){
+  return (
+    cardEl.closest('[data-card-scope], #downloadsContainer, #videosContainer, #guidesContainer, .cards-grid, .section') ||
+    cardEl.parentElement ||
+    document
+  );
 }
 
-// Lazy iframes
+function resetEmbeds(scope){
+  // Stop any playing video/iframe inside the collapsed card
+  scope.querySelectorAll('iframe').forEach(iframe=>{
+    const s = iframe.src;
+    if (s) iframe.src = s;
+  });
+}
+
+function toggleCard(cardEl){
+  const body = cardEl.querySelector('.card-body');
+  if (!body) return;
+
+  const scope = getCardScope(cardEl);
+  const accordion =
+    (scope.getAttribute('data-accordion') ?? '').toLowerCase() === 'true' ||
+    ACCORDION_DEFAULT;
+
+  // Accordion: close siblings only in the same scope
+  if (accordion && body.classList.contains('hidden')) {
+    scope.querySelectorAll('.card .card-body:not(.hidden)').forEach(el=>{
+      if (el !== body) {
+        el.classList.add('hidden');
+        el.closest('.card')?.classList.remove('expanded');
+        resetEmbeds(el);
+      }
+    });
+  }
+
+  body.classList.toggle('hidden');
+  cardEl.classList.toggle('expanded', !body.classList.contains('hidden'));
+}
+
+function collapseCard(cardEl){
+  const body = cardEl.querySelector('.card-body');
+  if (!body || body.classList.contains('hidden')) return;
+  resetEmbeds(body);
+  body.classList.add('hidden');
+  cardEl.classList.remove('expanded');
+}
+
+/* ---------------------------
+   Lazy iframes
+   - Use: <iframe class="defer-embed" data-src="..."></iframe>
+   - Works inside .shell, .shell-70, .shell-80 wrappers
+---------------------------- */
 (function(){
   const io = new IntersectionObserver((entries)=>{
     for(const e of entries){
       if(!e.isIntersecting) continue;
       e.target.querySelectorAll('iframe.defer-embed[data-src]').forEach(ifr=>{
-        if(!ifr.src){ ifr.src=ifr.getAttribute('data-src'); ifr.removeAttribute('data-src'); }
+        if(!ifr.src){
+          ifr.src = ifr.getAttribute('data-src');
+          ifr.removeAttribute('data-src');
+        }
       });
       io.unobserve(e.target);
     }
   }, {root:null, rootMargin:'150px 0px', threshold:0.15});
+
   document.querySelectorAll('.shell, .shell-70, .shell-80').forEach(el=>io.observe(el));
 })();
 
-// EOR page init
+/* ---------------------------
+   EOR page init
+---------------------------- */
 (function(){
   const eorRoot = document.getElementById('eor-root');
   if(!eorRoot) return;
@@ -210,7 +273,12 @@ function collapseCard(cardEl){
   initCategory(current);
 })();
 
-// Downloads page: search + category filters
+/* ---------------------------
+   Downloads page: search + category filters
+   - Accent-insensitive search
+   - ?q= sync in URL
+   - Highlight matches in title/desc/details
+---------------------------- */
 (async function(){
   const grid = document.getElementById('downloadsContainer');
   if(!grid) return;
@@ -218,52 +286,82 @@ function collapseCard(cardEl){
   const catRow = document.getElementById('dl-cats');
   const countEl = document.getElementById('dl-count');
 
+  // Accent-insensitive normalization
+  const norm = s => (s||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  // Safe highlighter
+  function hi(text, qRaw){
+    if(!qRaw) return String(text ?? '');
+    try{
+      const rx = new RegExp('('+qRaw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig');
+      return String(text ?? '').replace(rx, '<span class="mark">$1</span>');
+    }catch{ return String(text ?? ''); }
+  }
+
+  // Seed from ?q
+  (function seedFromQuery(){
+    const q = new URLSearchParams(location.search).get('q') || '';
+    if (search) search.value = q;
+  })();
+
   let all = [];
   let activeCats = new Set();
 
-  function renderCards(items){
+  function renderCards(items, qRaw){
     grid.innerHTML = '';
     if(!items.length){
       grid.innerHTML = '<p class="small" style="color:#ddd">No downloads match your filters.</p>';
-      countEl.textContent = '0';
+      if(countEl) countEl.textContent = '0';
       return;
     }
-    countEl.textContent = String(items.length);
+    if(countEl) countEl.textContent = String(items.length);
+
     for(const d of items){
       const cats = Array.isArray(d.categories) ? d.categories : [];
       const card = document.createElement('div');
       card.className = 'card';
       card.innerHTML = `
-        <h3 style="font-weight:800;font-size:1.15rem;margin-bottom:.25rem">${d.title??'Untitled'}</h3>
-        <p class="small">${d.description??''}</p>
+        <h3 style="font-weight:800;font-size:1.15rem;margin-bottom:.25rem">${hi(d.title??'Untitled', qRaw)}</h3>
+        <p class="small">${hi(d.description??'', qRaw)}</p>
         <div style="margin-top:.25rem;display:flex;flex-wrap:wrap;gap:.35rem">
-          ${cats.map(c=>`<span class="chip small">${c}</span>`).join('')}
+          ${cats.map(c=>`<span class="chip small">${hi(c, qRaw)}</span>`).join('')}
         </div>
         <div class="card-body hidden" style="margin-top:.75rem;font-size:.95rem">
-          ${d.version?`<p><strong>Version:</strong> ${d.version}</p>`:''}
-          ${d.details?`<p style="opacity:.9">${d.details}</p>`:''}
-          ${d.link?`<a href="${d.link}" target="_blank" class="btn" style="margin-top:.5rem">Download</a>`:''}
+          ${d.version?`<p><strong>Version:</strong> ${hi(d.version, qRaw)}</p>`:''}
+          ${d.details?`<p style="opacity:.9">${hi(d.details, qRaw)}</p>`:''}
+          ${d.link?`<div class="small" style="opacity:.8;word-break:break-all">Link: ${hi(d.link, qRaw)}</div>`:''}
+          ${d.link?`<a href="${d.link}" target="_blank" class="btn" style="margin-top:.5rem" rel="noopener">Download</a>`:''}
         </div>`;
-      card.onclick=()=>toggleCard(card);
+
+      // Only toggle when clicking the card background/content—not on interactive elements
+      card.addEventListener('click', (e)=>{
+        if (e.target.closest('a,button,input,textarea,select,label')) return;
+        toggleCard(card);
+      });
+
       grid.appendChild(card);
     }
   }
 
   function applyFilters(){
-    const q = (search?.value || '').trim().toLowerCase();
+    const qRaw = (search?.value || '').trim();
+    const q = norm(qRaw);
     let out = all.filter(d=>{
-      const hay = `${d.title||''} ${d.description||''} ${d.details||''} ${(d.version||'')}`.toLowerCase();
-      const passQ = !q || hay.includes(q);
+      const hayParts = [
+        d.title, d.description, d.details, d.version,
+        ...(Array.isArray(d.categories)? d.categories : [])
+      ].map(norm);
+      const passQ = !q || hayParts.join(' ').includes(q);
       const cats = Array.isArray(d.categories)? d.categories : [];
       const passC = activeCats.size===0 || cats.some(c=>activeCats.has(c));
       return passQ && passC;
     });
-    renderCards(out);
+    renderCards(out, qRaw);
   }
 
   function renderCatFilters(cats){
+    if(!catRow) return;
     catRow.innerHTML = '';
-    const uniq = [...new Set(cats.flat())].sort((a,b)=>a.localeCompare(b));
+    const uniq = [...new Set(cats.flat().filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b)));
     for(const c of uniq){
       const chip = document.createElement('button');
       chip.className = 'chip';
@@ -283,22 +381,41 @@ function collapseCard(cardEl){
     const data = await res.json();
     if(!Array.isArray(data)) throw new Error('downloads.json must be an array');
     all = data;
+
     const allCats = data.map(d=>Array.isArray(d.categories)? d.categories : []);
     renderCatFilters(allCats);
     applyFilters();
-    search?.addEventListener('input', ()=>applyFilters());
+
+    // Debounced search input + ?q= sync
+    let t=0;
+    search?.addEventListener('input', ()=>{
+      clearTimeout(t);
+      t = setTimeout(()=>{
+        const params = new URLSearchParams(location.search);
+        const rawQ = (search.value || '').trim();
+        if(rawQ) params.set('q', rawQ); else params.delete('q');
+        history.replaceState(null, '', location.pathname + (params.toString()?('?'+params.toString()):''));
+        applyFilters();
+      }, 120);
+    });
   }catch(e){
     grid.innerHTML = '<p style="color:#ef9a9a">Error loading downloads.json: '+e.message+'</p>';
+    if(countEl) countEl.textContent = '0';
   }
 })();
 
-// HowTo page: load from videos.json
+/* ---------------------------
+   HowTo page: load from videos.json
+   - Uses lazy embeds via .defer-embed + data-src, loaded by the global IO above
+---------------------------- */
 (async function(){
   const container = document.getElementById('videosContainer');
   if(!container) return;
   const vSearch = document.getElementById('vid-search');
   const vCatRow = document.getElementById('vid-cats');
   const vCount = document.getElementById('vid-count');
+
+  const norm = s => (s||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 
   let all = [];
   let activeCats = new Set();
@@ -307,10 +424,11 @@ function collapseCard(cardEl){
     container.innerHTML = '';
     if(!items.length){
       container.innerHTML = '<p class="small" style="color:#ddd">No videos match your filters.</p>';
-      vCount.textContent = '0';
+      if(vCount) vCount.textContent = '0';
       return;
     }
-    vCount.textContent = String(items.length);
+    if(vCount) vCount.textContent = String(items.length);
+
     for(const v of items){
       const cats = Array.isArray(v.categories) ? v.categories : [];
       const card = document.createElement('div');
@@ -323,18 +441,30 @@ function collapseCard(cardEl){
         </div>
         <div class="card-body hidden" style="margin-top:.75rem">
           <div class="shell shell-70">
-            <iframe class="w-full h-full" loading="lazy" src="https://www.youtube.com/embed/${v.youtubeId}" title="${v.title||'Video'}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+            <iframe class="w-full h-full defer-embed"
+              loading="lazy"
+              data-src="https://www.youtube.com/embed/${v.youtubeId}"
+              src=""
+              title="${(v.title||'Video').replace(/"/g,'&quot;')}"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerpolicy="strict-origin-when-cross-origin"
+              allowfullscreen></iframe>
           </div>
         </div>`;
-      card.onclick=()=>toggleCard(card);
+
+      card.addEventListener('click', (e)=>{
+        if (e.target.closest('a,button,input,textarea,select,label')) return;
+        toggleCard(card);
+      });
+
       container.appendChild(card);
     }
   }
 
   function applyFilters(){
-    const q = (vSearch?.value || '').trim().toLowerCase();
+    const q = norm(vSearch?.value || '');
     let out = all.filter(v=>{
-      const hay = `${v.title||''} ${v.description||''}`.toLowerCase();
+      const hay = norm(`${v.title||''} ${v.description||''}`);
       const passQ = !q || hay.includes(q);
       const cats = Array.isArray(v.categories)? v.categories : [];
       const passC = activeCats.size===0 || cats.some(c=>activeCats.has(c));
@@ -344,8 +474,9 @@ function collapseCard(cardEl){
   }
 
   function renderCatFilters(cats){
+    if(!vCatRow) return;
     vCatRow.innerHTML = '';
-    const uniq = [...new Set(cats.flat())].sort((a,b)=>a.localeCompare(b));
+    const uniq = [...new Set(cats.flat().filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b)));
     for(const c of uniq){
       const chip = document.createElement('button');
       chip.className = 'chip';
@@ -368,8 +499,10 @@ function collapseCard(cardEl){
     const allCats = data.map(v=>Array.isArray(v.categories)? v.categories : []);
     renderCatFilters(allCats);
     applyFilters();
-    vSearch?.addEventListener('input', ()=>applyFilters());
+    let t=0;
+    vSearch?.addEventListener('input', ()=>{ clearTimeout(t); t=setTimeout(applyFilters,120); });
   }catch(e){
     container.innerHTML = '<p style="color:#ef9a9a">Error loading videos.json.</p>';
+    if(vCount) vCount.textContent = '0';
   }
 })();
