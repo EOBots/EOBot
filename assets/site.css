@@ -97,3 +97,29 @@ pre.wrap-json{ white-space:pre-wrap; word-wrap:break-word; overflow-x:auto; }
   align-items:start;
 }
 .cards-masonry > .card{ align-self:start; }
+
+/* Make YouTube iframes fill their shell perfectly */
+.card .shell,
+.card .shell-70,
+.card .shell-80 { position: relative; }
+
+.card .shell iframe,
+.card .shell-70 iframe,
+.card .shell-80 iframe {
+  position: absolute;     /* stretch to the shell’s edges */
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  border: 0;
+  display: block;
+}
+
+/* Optional: use a fixed 16:9 shell if you want equal-height cards instead of svh */
+.shell-16x9 { 
+  position: relative; 
+  aspect-ratio: 16 / 9; 
+  height: auto; 
+  min-height: 0; 
+}
+.shell-16x9 iframe { position:absolute; inset:0; width:100% !important; height:100% !important; }
+
