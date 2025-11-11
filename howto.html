@@ -23,26 +23,48 @@
   <section class="hero">
     <div class="container">
       <h1>How To Use</h1>
-      <p>Step‑by‑step videos embedded below. Click a card to open.</p>
+      <p>Step-by-step videos embedded below. Click a card to open.</p>
+
       <div class="page-spacer"><div class="core"></div></div>
 
-      <div class="container" style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));">
+      <!-- Give this grid a scope so only its cards are affected -->
+      <div id="videosContainer"
+           data-card-scope
+           data-accordion="false"
+           class="container"
+           style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));">
+
         <div class="card" onclick="toggleCard(this)">
           <h3 class="text-xl font-bold mb-1">Finding NPC Address</h3>
           <p class="text-white/80">Learn how to find NPC addresses.</p>
           <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
             <div class="shell shell-70">
-              <iframe class="w-full h-full" loading="lazy" src="https://www.youtube.com/embed/iTLIuEHOfd4?si=ONAaS13zwQDKNSgP" title="YouTube"></iframe>
+              <!-- lazy via assets/site.js IO: use defer-embed + data-src -->
+              <iframe class="w-full h-full defer-embed"
+                      loading="lazy"
+                      src=""
+                      data-src="https://www.youtube.com/embed/iTLIuEHOfd4?si=ONAaS13zwQDKNSgP"
+                      title="YouTube"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      referrerpolicy="strict-origin-when-cross-origin"
+                      allowfullscreen></iframe>
             </div>
           </div>
         </div>
 
         <div class="card" onclick="toggleCard(this)">
           <h3 class="text-xl font-bold mb-1">Configuring CaptchaBot</h3>
-          <p class="text-white/80">Step‑by‑step setup tutorial.</p>
+          <p class="text-white/80">Step-by-step setup tutorial.</p>
           <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
             <div class="shell shell-70">
-              <iframe class="w-full h-full" loading="lazy" src="https://www.youtube.com/embed/ysz5S6PUM-U" title="YouTube"></iframe>
+              <iframe class="w-full h-full defer-embed"
+                      loading="lazy"
+                      src=""
+                      data-src="https://www.youtube.com/embed/ysz5S6PUM-U"
+                      title="YouTube"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      referrerpolicy="strict-origin-when-cross-origin"
+                      allowfullscreen></iframe>
             </div>
           </div>
         </div>
@@ -52,10 +74,18 @@
           <p class="text-white/80">Guide to using the WalkPath Recorder.</p>
           <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
             <div class="shell shell-70">
-              <iframe class="w-full h-full" loading="lazy" src="https://www.youtube.com/embed/eIP6LVxiPqw?si=iVTs-2GNDcT5j953" title="YouTube"></iframe>
+              <iframe class="w-full h-full defer-embed"
+                      loading="lazy"
+                      src=""
+                      data-src="https://www.youtube.com/embed/eIP6LVxiPqw?si=iVTs-2GNDcT5j953"
+                      title="YouTube"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      referrerpolicy="strict-origin-when-cross-origin"
+                      allowfullscreen></iframe>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   </section>
