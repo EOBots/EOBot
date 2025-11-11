@@ -1,5 +1,15 @@
 [
   {
+    "title": "Weighthack Source Code",
+    "description": "Endless Online Weight Hack",
+    "version": "1",
+    "details": "Stop being overweight with this python weight hack!",
+    "link": "https://github.com/EOBots/EOBot/blob/main/downloads/weighthack.py",
+    "categories": [
+      "QoL"
+    ]
+  },
+  {
     "title": "EOProxy Tool",
     "description": "Network packet analyzer for Endless Online by Abuse built off Exile EOProxy.",
     "version": "2.3.1",
