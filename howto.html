@@ -7,11 +7,6 @@
   <title>EOBots • How To</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="assets/site.css" />
-  <style>
-    /* keep cards from expanding to match tallest neighbor */
-    #videosContainer { align-items:start; }
-    .card { align-self:start; }
-  </style>
 </head>
 <body class="bg-grid">
   <nav class="nav">
@@ -30,64 +25,20 @@
       <h1>How To Use</h1>
       <p>Step-by-step videos embedded below. Click a card to open.</p>
 
+      <div class="container mt-4 flex flex-wrap gap-3 items-center justify-center">
+        <input id="vid-search" class="input" placeholder="Search videos…" style="width:min(100%,360px)">
+        <span class="small opacity-75">Showing <span id="vid-count">0</span></span>
+      </div>
+
+      <div id="vid-cats" class="container mt-3 flex flex-wrap gap-2 justify-center"></div>
+
       <div class="page-spacer"><div class="core"></div></div>
 
-      <!-- Scoped grid + no stretch -->
       <div id="videosContainer"
            data-card-scope
            data-accordion="false"
-           class="container"
-           style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));align-items:start">
-
-        <div class="card" onclick="toggleCard(this)">
-          <h3 class="text-xl font-bold mb-1">Finding NPC Address</h3>
-          <p class="text-white/80">Learn how to find NPC addresses.</p>
-          <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
-            <div class="shell shell-70">
-              <!-- Reverted to standard YouTube embed with direct src -->
-              <iframe class="w-full h-full"
-                      loading="lazy"
-                      src="https://www.youtube.com/embed/iTLIuEHOfd4?si=ONAaS13zwQDKNSgP"
-                      title="Finding NPC Address"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      referrerpolicy="strict-origin-when-cross-origin"
-                      allowfullscreen></iframe>
-            </div>
-          </div>
-        </div>
-
-        <div class="card" onclick="toggleCard(this)">
-          <h3 class="text-xl font-bold mb-1">Configuring CaptchaBot</h3>
-          <p class="text-white/80">Step-by-step setup tutorial.</p>
-          <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
-            <div class="shell shell-70">
-              <iframe class="w-full h-full"
-                      loading="lazy"
-                      src="https://www.youtube.com/embed/ysz5S6PUM-U"
-                      title="Configuring CaptchaBot"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      referrerpolicy="strict-origin-when-cross-origin"
-                      allowfullscreen></iframe>
-            </div>
-          </div>
-        </div>
-
-        <div class="card" onclick="toggleCard(this)">
-          <h3 class="text-xl font-bold mb-1">Recording Routes</h3>
-          <p class="text-white/80">Guide to using the WalkPath Recorder.</p>
-          <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
-            <div class="shell shell-70">
-              <iframe class="w-full h-full"
-                      loading="lazy"
-                      src="https://www.youtube.com/embed/eIP6LVxiPqw?si=iVTs-2GNDcT5j953"
-                      title="Recording Routes"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      referrerpolicy="strict-origin-when-cross-origin"
-                      allowfullscreen></iframe>
-            </div>
-          </div>
-        </div>
-
+           class="container cards-masonry">
+        <!-- cards rendered by assets/site.js from videos.json -->
       </div>
     </div>
   </section>
