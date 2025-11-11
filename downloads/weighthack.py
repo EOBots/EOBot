@@ -1,69 +1,63 @@
-# File: EO_WeightLock_GUI.py
-# Standalone weight-lock toggle GUI using Frida (16.x).
-# Locks in-game weight at zero by intercepting the two write sites and zeroing the write register.
-#
-# Build (no console):
-#   pyinstaller --noconsole --onefile EO_WeightLock_GUI.py
-#
-# Requirements:
-#   pip install frida==16.* ttkthemes
-# Run as Administrator if needed to attach.
+# EO_WeightLock_GUI.py
+# Standalone weight-lock toggle using Frida. GUI-only; no terminal output required.
+# Default write RVAs pulled from CeraBot v12.2: WEIGHT_WRITE_ADDRS = [0x100DF5, 0x100454]
 
 import threading
 import tkinter as tk
 from tkinter import ttk, messagebox
-from ttkthemes import ThemedTk
-import re
+import webbrowser
+import frida
+import time
 
-try:
-    import frida
-except Exception as e:
-    raise SystemExit(f"Frida import failed: {e}")
+PROCESS_NAME = "Endless.exe"
+DEFAULT_ADDRS = [0x100DF5, 0x100454]  # RVAs from Endless.exe base (v12.2)
 
-APP_TITLE = "EO Weight Lock"
-# Process to attach (Windows typically shows the exe name for the process too)
-DEFAULT_PROCESS = "Endless.exe"
-
-# >>> Correct default RVAs from your v13 script:
-DEFAULT_OFFSETS_TEXT = "0x100DF5, 0x100454"
-
-class WeightLock:
-    def __init__(self, process_name: str, log_fn):
-        self.process_name = process_name
-        self.log = log_fn
+class WeightLocker:
+    """
+    Small helper managing a Frida session that hooks write instructions at the
+    provided RVAs and forces the written register to 0, mirroring v12.2's logic.
+    """
+    def __init__(self, log_cb):
         self._session = None
         self._script = None
-        self._lock = threading.Lock()
+        self._enabled = False
+        self._log = log_cb
 
-    def _build_js(self, offs_hex_list):
-        # Use the exe module explicitly; fallback to main module if the name differs
+    def _make_js(self, rvas):
+        # Build a Frida script that: resolves Endless.exe base, iterates RVAs,
+        # attaches Interceptor to each address, and zeros EAX/RAX before the write.
+        # Works on 32/64-bit; we set whichever register exists in the context.
+        rva_list = ", ".join([f"ptr(0x{rv:x})" for rv in rvas])
         js = f"""
         (function() {{
-            var mod = null;
-            try {{
-                mod = Process.getModuleByName("Endless.exe");
-            }} catch (e) {{
-                var mods = Process.enumerateModules();
-                mod = mods.length ? mods[0] : null;
+            function findBase() {{
+                try {{
+                    return Process.getModuleByName("{PROCESS_NAME}").base;
+                }} catch (e) {{
+                    var mods = Process.enumerateModules();
+                    return mods.length ? mods[0].base : null;
+                }}
             }}
-            if (!mod) {{
-                throw new Error("Could not resolve Endless.exe (or main) module.");
+            var base = findBase();
+            if (!base) {{
+                throw new Error("Could not resolve {PROCESS_NAME} module base.");
             }}
-            var base = mod.base;
 
-            // Offsets provided by Python
-            var OFFS = [{", ".join(f"ptr('{o}')" for o in offs_hex_list)}];
-
-            OFFS.forEach(function(rel) {{
+            var RVAS = [{rva_list}];
+            RVAS.forEach(function(rel) {{
                 var addr = base.add(rel);
                 try {{
                     Interceptor.attach(addr, {{
                         onEnter: function (args) {{
-                            // Force weight write register to zero (x86/x64 safe).
-                            if (this.context.eax !== undefined) {{
-                                this.context.eax = 0;
-                            }} else if (this.context.rax !== undefined) {{
-                                this.context.rax = ptr(0);
+                            try {{
+                                if (this.context.eax !== undefined) {{
+                                    this.context.eax = 0;
+                                }}
+                                if (this.context.rax !== undefined) {{
+                                    this.context.rax = ptr(0);
+                                }}
+                            }} catch (e) {{
+                                // Swallow per-call errors to keep hook alive
                             }}
                         }}
                     }});
@@ -72,206 +66,285 @@ class WeightLock:
                 }}
             }});
 
-            send({{type: "weight-lock-ready", count: OFFS.length}});
+            send({{type: "weight-lock-ready", count: RVAS.length}});
         }})();
-        """.strip()
+        """
         return js
 
-    def enable(self, offsets):
-        with self._lock:
-            if self._session is not None:
-                self.log("Already enabled.")
-                return
+    def enable(self, rvas):
+        if self._enabled:
+            return True
 
-            # Normalize tokens → hex strings
-            offs_hex = []
-            for raw in offsets:
-                s = str(raw).strip()
-                if s.lower().startswith("0x"):
-                    offs_hex.append(s)
-                else:
-                    offs_hex.append(hex(int(s)))
+        try:
+            self._session = frida.attach(PROCESS_NAME)
+        except Exception as e:
+            self._session = None
+            self._log(f"[error] Unable to attach to {PROCESS_NAME}: {e}")
+            return False
 
-            try:
-                # Attach to process
-                self._session = frida.attach(self.process_name)
-            except Exception as e:
-                self._session = None
-                raise RuntimeError(f"Failed to attach to {self.process_name}: {e}")
-
-            js = self._build_js(offs_hex)
+        try:
+            js = self._make_js(rvas)
+            self._script = self._session.create_script(js)
 
             def on_message(message, data):
                 try:
-                    if message.get("type") == "send":
+                    mtype = message.get("type")
+                    if mtype == "send":
                         payload = message.get("payload", {})
-                        typ = payload.get("type")
-                        if typ == "weight-lock-ready":
-                            self.log(f"Weight lock enabled on {payload.get('count')} address(es).")
-                        elif typ == "weight-lock-hook-error":
-                            self.log(f"Hook failed @ {payload.get('address')}: {payload.get('error')}")
-                    elif message.get("type") == "error":
-                        self.log(f"Script error: {message}")
+                        ptype = payload.get("type", "")
+                        if ptype == "weight-lock-ready":
+                            self._log(f"[frida] Weight lock enabled on {payload.get('count', '?')} addresses.")
+                        elif ptype == "weight-lock-hook-error":
+                            self._log(f"[frida] Hook failed @ {payload.get('address')} : {payload.get('error')}")
+                        else:
+                            self._log(f"[frida] {payload}")
+                    elif mtype == "error":
+                        self._log(f"[frida error] {message}")
+                    else:
+                        self._log(f"[frida] {message}")
                 except Exception as e:
-                    self.log(f"on_message error: {e}")
+                    self._log(f"[error] Message handling: {e}")
 
-            try:
-                self._script = self._session.create_script(js)
-                self._script.on("message", on_message)
-                self._script.load()
-                self.log("Hooks installed (listening).")
-            except Exception as e:
-                try:
-                    if self._script: self._script.unload()
-                except Exception:
-                    pass
-                try:
-                    if self._session: self._session.detach()
-                except Exception:
-                    pass
-                self._script = None
-                self._session = None
-                raise RuntimeError(f"Failed to load hook script: {e}")
+            self._script.on("message", on_message)
+            self._script.load()
+            self._enabled = True
+            self._log("[ok] Hooks installed. Weight should now remain at 0.")
+            return True
 
-    def disable(self):
-        with self._lock:
-            ok = True
-            try:
-                if self._script:
-                    self._script.unload()
-            except Exception as e:
-                ok = False
-            finally:
-                self._script = None
-
+        except Exception as e:
+            self._log(f"[error] Failed to create/load script: {e}")
             try:
                 if self._session:
                     self._session.detach()
+            except Exception:
+                pass
+            self._session = None
+            self._script = None
+            return False
+
+    def disable(self):
+        ok = True
+        if self._script is not None:
+            try:
+                self._script.unload()
             except Exception as e:
+                self._log(f"[warn] Error unloading script: {e}")
                 ok = False
-            finally:
-                self._session = None
+            self._script = None
+        if self._session is not None:
+            try:
+                self._session.detach()
+            except Exception as e:
+                self._log(f"[warn] Error detaching session: {e}")
+                ok = False
+            self._session = None
+        if self._enabled:
+            self._log("[ok] Hooks removed. Weight will behave normally.")
+        self._enabled = False
+        return ok
 
-            self.log("Weight lock disabled." if ok else "Disabled with warnings.")
+    @property
+    def enabled(self):
+        return self._enabled
 
-class App:
+
+class App(tk.Tk):
     def __init__(self):
-        self.root = ThemedTk(theme="black")
-        self.root.title(APP_TITLE)
-        self.root.geometry("520x360")
-        self.root.minsize(480, 340)
+        super().__init__()
+        self.title("EO Weight Lock")
+        self.geometry("560x420")
+        self.resizable(False, False)
 
-        self.process_var = tk.StringVar(value=DEFAULT_PROCESS)
-        self.offsets_var = tk.StringVar(value=DEFAULT_OFFSETS_TEXT)
-        self.status_var = tk.StringVar(value="Idle.")
+        # Colors (red/black theme)
+        self.bg = "#0b0b0e"
+        self.panel = "#111116"
+        self.accent = "#ef4444"
+        self.text = "#f5f5f5"
+        self.dim = "#a1a1aa"
 
-        self.lock = WeightLock(self.process_var.get(), self._log)
+        self.configure(bg=self.bg)
+        self._style_widgets()
+
+        self.locker = WeightLocker(self._log)
+
         self._build_ui()
 
+        # default addresses
+        self.addr_var.set(", ".join([f"0x{x:X}" for x in DEFAULT_ADDRS]))
+
+        # on close
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+    def _style_widgets(self):
+        style = ttk.Style(self)
+        style.theme_use("default")
+
+        style.configure("TFrame", background=self.bg)
+        style.configure("Panel.TFrame", background=self.panel)
+        style.configure("TLabel", background=self.bg, foreground=self.text, font=("Segoe UI", 10))
+        style.configure("Heading.TLabel", background=self.bg, foreground=self.text, font=("Segoe UI Semibold", 14))
+        style.configure("Small.TLabel", background=self.bg, foreground=self.dim, font=("Segoe UI", 9))
+        style.configure("TButton",
+                        background=self.accent, foreground="#000",
+                        font=("Segoe UI Semibold", 10),
+                        relief="flat", padding=8)
+        style.map("TButton",
+                  background=[("active", "#f87171")])
+        style.configure("Secondary.TButton",
+                        background="#27272a", foreground=self.text)
+        style.map("Secondary.TButton",
+                  background=[("active", "#3f3f46")])
+        style.configure("TEntry", fieldbackground="#18181b", foreground=self.text, insertcolor=self.text)
+        style.configure("TLabelframe", background=self.panel, foreground=self.text)
+        style.configure("TLabelframe.Label", background=self.panel, foreground=self.text)
+
     def _build_ui(self):
-        pad = {"padx": 10, "pady": 8}
-        frm = ttk.Frame(self.root)
-        frm.pack(fill="both", expand=True)
-        row = 0
+        # Header
+        header = ttk.Frame(self, style="TFrame")
+        header.pack(fill="x", padx=16, pady=(16, 8))
 
-        ttk.Label(frm, text="Process name:").grid(row=row, column=0, sticky="w", **pad)
-        self.proc_entry = ttk.Entry(frm, textvariable=self.process_var, width=28)
-        self.proc_entry.grid(row=row, column=1, sticky="we", **pad)
-        frm.columnconfigure(1, weight=1)
+        ttk.Label(header, text="EO Weight Lock", style="Heading.TLabel").pack(anchor="w")
+        ttk.Label(header, text="Locks your in-game weight to 0 by intercepting write instructions (Frida-based).",
+                  style="Small.TLabel").pack(anchor="w", pady=(2, 0))
 
-        row += 1
-        ttk.Label(frm, text="Weight write RVAs (comma-sep):").grid(row=row, column=0, sticky="w", **pad)
-        self.offs_entry = ttk.Entry(frm, textvariable=self.offsets_var)
-        self.offs_entry.grid(row=row, column=1, sticky="we", **pad)
+        # Controls panel
+        panel = ttk.LabelFrame(self, text=" Controls ", style="TLabelframe")
+        panel.pack(fill="x", padx=16, pady=8, ipadx=8, ipady=8)
 
-        row += 1
-        btns = ttk.Frame(frm); btns.grid(row=row, column=0, columnspan=2, sticky="w", **pad)
-        self.enable_btn = ttk.Button(btns, text="Enable Weight Lock", command=self.on_enable)
-        self.disable_btn = ttk.Button(btns, text="Disable", command=self.on_disable, state=tk.DISABLED)
-        self.enable_btn.pack(side="left", padx=(0, 8)); self.disable_btn.pack(side="left")
+        row = ttk.Frame(panel, style="Panel.TFrame")
+        row.pack(fill="x", padx=8, pady=6)
 
-        row += 1
-        ttk.Label(frm, text="Status:").grid(row=row, column=0, sticky="nw", **pad)
-        self.status_lbl = ttk.Label(frm, textvariable=self.status_var)
-        self.status_lbl.grid(row=row, column=1, sticky="we", **pad)
+        ttk.Label(row, text="Write RVAs (from Endless.exe base, comma-separated hex or dec):").pack(anchor="w")
+        self.addr_var = tk.StringVar()
+        addr_entry = ttk.Entry(row, textvariable=self.addr_var, width=64)
+        addr_entry.pack(anchor="w", pady=(4, 0))
 
-        row += 1
-        ttk.Label(frm, text="Log:").grid(row=row, column=0, sticky="nw", **pad)
-        self.log_txt = tk.Text(frm, height=10, state="disabled")
-        self.log_txt.grid(row=row, column=1, sticky="nsew", **pad)
-        frm.rowconfigure(row, weight=1)
+        btns = ttk.Frame(panel, style="Panel.TFrame")
+        btns.pack(fill="x", padx=8, pady=(8, 0))
 
-        row += 1
-        hint = ttk.Label(frm, text="Tip: Defaults use your v13 write RVAs.\nEXE: pyinstaller --noconsole --onefile EO_WeightLock_GUI.py", foreground="#66b")
-        hint.grid(row=row, column=0, columnspan=2, sticky="w", padx=10, pady=(0,10))
+        self.toggle_btn = ttk.Button(btns, text="Enable Weight Lock", command=self._toggle)
+        self.toggle_btn.pack(side="left", padx=(0, 8))
 
-        self.process_var.trace_add("write", self._on_process_change)
-        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.stop_btn = ttk.Button(btns, text="Disable", command=self._disable, style="Secondary.TButton")
+        self.stop_btn.pack(side="left")
 
-    def _on_process_change(self, *_):
-        self.lock = WeightLock(self.process_var.get(), self._log)
+        # Status line
+        status = ttk.Frame(self, style="TFrame")
+        status.pack(fill="x", padx=16, pady=(8, 4))
+        ttk.Label(status, text="Status:", style="TLabel").pack(side="left")
 
-    def _parse_offsets(self):
-        text = self.offsets_var.get().strip()
-        if not text:
-            raise ValueError("Provide at least one RVA (e.g., 0x100DF5).")
-        parts = [p.strip() for p in text.split(",")]
-        valid = []
-        for p in parts:
-            if re.fullmatch(r"(?i)0x[0-9a-f]+", p):
-                valid.append(p)
-            else:
-                valid.append(str(int(p)))  # allow decimal
-        return valid
+        self.dot = tk.Canvas(status, width=12, height=12, bg=self.bg, highlightthickness=0)
+        self.dot.pack(side="left", padx=6)
+        self.dot_id = self.dot.create_oval(2, 2, 10, 10, fill="#7f1d1d", outline="")
 
-    def _log(self, msg: str):
-        self.status_var.set(msg)
-        self.log_txt.config(state="normal")
-        self.log_txt.insert("end", msg + "\n")
-        self.log_txt.see("end")
-        self.log_txt.config(state="disabled")
+        self.status_var = tk.StringVar(value="OFF")
+        self.status_lbl = ttk.Label(status, textvariable=self.status_var, style="TLabel")
+        self.status_lbl.pack(side="left")
 
-    def _threaded(self, target, on_ok=None, on_err=None):
-        def run():
+        # Log box
+        log_frame = ttk.LabelFrame(self, text=" Log ", style="TLabelframe")
+        log_frame.pack(fill="both", expand=True, padx=16, pady=8)
+
+        self.log = tk.Text(log_frame, height=10, wrap="word",
+                           bg="#0f0f13", fg=self.text, insertbackground=self.text,
+                           highlightthickness=0, bd=0)
+        self.log.pack(fill="both", expand=True, padx=8, pady=8)
+        self.log.configure(state="disabled")
+
+        # Link (clickable)
+        link_frame = ttk.Frame(self, style="TFrame")
+        link_frame.pack(fill="x", padx=16, pady=(0, 12))
+
+        link = tk.Label(link_frame,
+                        text="For More Programs: https://eobots.github.io/EOBot/",
+                        fg=self.accent, bg=self.bg, cursor="hand2", font=("Segoe UI", 10, "underline"))
+        link.pack(anchor="w")
+        link.bind("<Button-1>", lambda e: webbrowser.open("https://eobots.github.io/EOBot/"))
+
+        self._refresh_ui()
+
+    def _log(self, msg):
+        self.log.configure(state="normal")
+        self.log.insert("end", msg + "\n")
+        self.log.see("end")
+        self.log.configure(state="disabled")
+
+    def _parse_addrs(self):
+        raw = self.addr_var.get().strip()
+        if not raw:
+            return []
+        out = []
+        for part in raw.split(","):
+            s = part.strip()
+            if not s:
+                continue
             try:
-                target()
-                if on_ok: self.root.after(0, on_ok)
-            except Exception as e:
-                if on_err:
-                    self.root.after(0, lambda: on_err(e))
+                if s.lower().startswith("0x"):
+                    out.append(int(s, 16))
                 else:
-                    self.root.after(0, lambda: messagebox.showerror(APP_TITLE, str(e)))
-        threading.Thread(target=run, daemon=True).start()
+                    out.append(int(s, 10))
+            except ValueError:
+                raise ValueError(f"Bad address: {s}")
+        return out
 
-    def on_enable(self):
+    def _toggle(self):
+        if self.locker.enabled:
+            self._disable()
+            return
+
         try:
-            offs = self._parse_offsets()
+            rvas = self._parse_addrs()
+            if not rvas:
+                messagebox.showerror("Error", "Please provide at least one RVA.")
+                return
         except Exception as e:
-            messagebox.showerror(APP_TITLE, str(e)); return
-        self.enable_btn.config(state=tk.DISABLED)
-        self._threaded(
-            target=lambda: self.lock.enable(offs),
-            on_ok=lambda: self.disable_btn.config(state=tk.NORMAL),
-            on_err=lambda e: (self.enable_btn.config(state=tk.NORMAL),
-                              messagebox.showerror(APP_TITLE, f"Enable failed:\n{e}"))
-        )
+            messagebox.showerror("Error", str(e))
+            return
 
-    def on_disable(self):
-        self.disable_btn.config(state=tk.DISABLED)
-        self._threaded(
-            target=self.lock.disable,
-            on_ok=lambda: self.enable_btn.config(state=tk.NORMAL),
-            on_err=lambda e: (self.enable_btn.config(state=tk.NORMAL),
-                              messagebox.showwarning(APP_TITLE, f"Disable warnings:\n{e}"))
-        )
+        # Enable in a thread so UI doesn't freeze
+        def worker():
+            self._set_status("WORKING", "#92400e")
+            ok = self.locker.enable(rvas)
+            if ok and self.locker.enabled:
+                self._set_status("ON", "#16a34a")
+                self.toggle_btn.configure(text="Disable Weight Lock")
+            else:
+                self._set_status("OFF", "#7f1d1d")
+                self.toggle_btn.configure(text="Enable Weight Lock")
 
-    def on_close(self):
-        try: self.lock.disable()
-        except Exception: pass
-        self.root.destroy()
+        threading.Thread(target=worker, daemon=True).start()
 
-    def run(self):
-        self.root.mainloop()
+    def _disable(self):
+        def worker():
+            self._set_status("WORKING", "#92400e")
+            self.locker.disable()
+            self._set_status("OFF", "#7f1d1d")
+            self.toggle_btn.configure(text="Enable Weight Lock")
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _set_status(self, label, color):
+        self.status_var.set(label)
+        try:
+            self.dot.itemconfig(self.dot_id, fill=color)
+        except Exception:
+            pass
+        self._refresh_ui()
+
+    def _refresh_ui(self):
+        # Buttons enable/disable based on state
+        if self.locker.enabled:
+            self.toggle_btn.configure(text="Disable Weight Lock")
+        else:
+            self.toggle_btn.configure(text="Enable Weight Lock")
+
+    def _on_close(self):
+        try:
+            self.locker.disable()
+        except Exception:
+            pass
+        self.destroy()
+
 
 if __name__ == "__main__":
-    App().run()
+    app = App()
+    app.mainloop()
