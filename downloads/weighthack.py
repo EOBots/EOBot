@@ -1,13 +1,12 @@
 # EO_WeightLock_GUI.py
-# Compact, red/black GUI. Live weight readout. No external icon files.
-# Uses Frida to intercept write instructions and zero EAX/RAX (same logic as your working version).
+# Compact red/black GUI, live weight readout, clickable link, no external icon files.
+# Frida hooks the write sites and zeros EAX/RAX (same logic as your working version).
 #
-# Build (no console):
+# Build:
 #   pyinstaller --noconsole --onefile EO_WeightLock_GUI.py
 #
 # Requirements:
 #   pip install frida==16.*
-# Run as Administrator if required to attach to the game process.
 
 import threading
 import tkinter as tk
@@ -17,14 +16,11 @@ import frida
 
 PROCESS_NAME = "Endless.exe"
 DEFAULT_ADDRS = [0x100DF5, 0x100454]  # RVAs from Endless.exe base (v12.2)
+MORE_PROGS_URL = "https://eobots.github.io/EOBot/"
 
 # ------------------------------ Frida Driver ------------------------------
 
 class WeightLocker:
-    """
-    Manages a Frida session that hooks the provided RVAs and forces EAX/RAX to 0.
-    Also emits weight samples (value about to be written) back to the UI.
-    """
     def __init__(self, log_cb, weight_cb):
         self._session = None
         self._script = None
@@ -34,7 +30,6 @@ class WeightLocker:
 
     def _make_js(self, rvas):
         rva_list = ", ".join([f"ptr(0x{rv:x})" for rv in rvas])
-        # We also send weight samples (value the game was about to write) before zeroing it.
         js = f"""
         (function() {{
             var WL = {{ lastVal: -1, lastTs: 0 }};
@@ -48,9 +43,7 @@ class WeightLocker:
             }}
 
             var base = findBase();
-            if (!base) {{
-                throw new Error("Could not resolve {PROCESS_NAME} module base.");
-            }}
+            if (!base) throw new Error("Could not resolve {PROCESS_NAME} module base.");
 
             var RVAS = [{rva_list}];
 
@@ -76,7 +69,7 @@ class WeightLocker:
                             try {{
                                 if (this.context.eax !== undefined) this.context.eax = 0;
                                 if (this.context.rax !== undefined) this.context.rax = ptr(0);
-                            }} catch (e) {{ }}
+                            }} catch (e) {{}}
                         }}
                     }});
                 }} catch (e) {{
@@ -172,8 +165,7 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("EO Weight Lock")
-        # Compact window
-        self.geometry("440x300")
+        self.geometry("460x310")  # compact
         self.resizable(False, False)
 
         # Colors (red/black)
@@ -187,12 +179,10 @@ class App(tk.Tk):
         self._style_widgets()
         self._set_icon_generated()
 
-        # State
         self.addr_var = tk.StringVar(value=", ".join([f"0x{x:X}" for x in DEFAULT_ADDRS]))
         self.status_var = tk.StringVar(value="OFF")
         self.weight_var = tk.StringVar(value="—")
 
-        # Frida driver (thread-safe UI callbacks via after())
         self.locker = WeightLocker(
             log_cb=lambda m: self.after(0, self._append_log, m),
             weight_cb=lambda v: self.after(0, self._set_weight, v)
@@ -201,25 +191,21 @@ class App(tk.Tk):
         self._build_ui()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
-    # Create a simple 16x16 icon purely in code (no files).
+    # Programmatic window-bar icon (no files)
     def _set_icon_generated(self):
         icon = tk.PhotoImage(width=16, height=16)
-        # Fill background black
         icon.put(self.bg, to=(0, 0, 16, 16))
-        # Draw red border square
         for x in range(16):
             icon.put(self.accent, (x, 0))
             icon.put(self.accent, (x, 15))
         for y in range(16):
             icon.put(self.accent, (0, y))
             icon.put(self.accent, (15, y))
-        # Draw small red "dot" center
         for y in range(6, 10):
             for x in range(6, 10):
                 icon.put(self.accent, (x, y))
         self.iconphoto(True, icon)
-        # Keep a reference
-        self._icon_ref = icon
+        self._icon_ref = icon  # keep ref
 
     def _style_widgets(self):
         style = ttk.Style(self)
@@ -229,6 +215,7 @@ class App(tk.Tk):
         style.configure("TLabelframe.Label", background=self.panel, foreground=self.text)
         style.configure("TLabel", background=self.bg, foreground=self.text, font=("Segoe UI", 9))
         style.configure("Hint.TLabel", background=self.bg, foreground=self.dim, font=("Segoe UI", 9))
+        style.configure("Small.TLabel", background=self.bg, foreground=self.text, font=("Segoe UI", 8))
         style.configure("Link.TLabel", background=self.bg, foreground=self.accent, font=("Segoe UI", 9, "underline"))
         style.configure("TButton",
                         background=self.accent, foreground="#000",
@@ -238,25 +225,15 @@ class App(tk.Tk):
                         background="#27272a", foreground=self.text, font=("Segoe UI Semibold", 9), padding=6)
         style.map("Secondary.TButton", background=[("active", "#3f3f46")])
         style.configure("TEntry", fieldbackground="#18181b", foreground=self.text, insertcolor=self.text)
-        style.configure("Small.TLabel", background=self.bg, foreground=self.text, font=("Segoe UI", 8))
 
     def _build_ui(self):
-        # Top row: Title + live weight + status dot
+        # Top row: Title + weight + status
         top = ttk.Frame(self, style="TFrame")
-        top.pack(fill="x", padx=12, pady=(10, 6))
+        top.pack(fill="x", padx=12, pady=(10, 4))
+        ttk.Label(top, text="EO Weight Lock", font=("Segoe UI Semibold", 12)).pack(side="left")
+        ttk.Label(top, text="Actual Weight:", style="TLabel").pack(side="left", padx=(8, 2))
+        ttk.Label(top, textvariable=self.weight_var, style="TLabel").pack(side="left")
 
-        title = ttk.Label(top, text="EO Weight Lock", font=("Segoe UI Semibold", 12))
-        title.pack(side="left")
-
-        # Spacer
-        ttk.Label(top, text=" ").pack(side="left", padx=6)
-
-        # Live weight
-        ttk.Label(top, text="Current Weight:", style="TLabel").pack(side="left")
-        self.weight_lbl = ttk.Label(top, textvariable=self.weight_var, style="TLabel")
-        self.weight_lbl.pack(side="left", padx=(4, 0))
-
-        # Status dot + label
         status = ttk.Frame(top, style="TFrame")
         status.pack(side="right")
         self.dot = tk.Canvas(status, width=10, height=10, bg=self.bg, highlightthickness=0, bd=0)
@@ -264,9 +241,19 @@ class App(tk.Tk):
         self.dot_id = self.dot.create_oval(1, 1, 9, 9, fill="#7f1d1d", outline="")
         ttk.Label(status, textvariable=self.status_var, style="Small.TLabel").pack(side="left")
 
+        # Link bar (always visible and clickable)
+        linkbar = ttk.Frame(self, style="TFrame")
+        linkbar.pack(fill="x", padx=12, pady=(0, 4))
+        link = tk.Label(linkbar,
+                        text=f"For More Programs: {MORE_PROGS_URL}",
+                        fg=self.accent, bg=self.bg, cursor="hand2",
+                        font=("Segoe UI", 9, "underline"))
+        link.pack(side="left", anchor="w")
+        link.bind("<Button-1>", lambda e: webbrowser.open(MORE_PROGS_URL))
+
         # Controls
         panel = ttk.LabelFrame(self, text=" Controls ", style="TLabelframe")
-        panel.pack(fill="x", padx=12, pady=6, ipadx=6, ipady=6)
+        panel.pack(fill="x", padx=12, pady=4, ipadx=6, ipady=6)
 
         r1 = ttk.Frame(panel, style="TFrame")
         r1.pack(fill="x")
@@ -280,26 +267,20 @@ class App(tk.Tk):
         self.toggle_btn.pack(side="left")
         ttk.Button(r2, text="Disable", style="Secondary.TButton", command=self._disable).pack(side="left", padx=6)
 
-        # Hint/instruction (compact)
+        # Hint
         hint = ttk.Label(self,
                          text="Pick an item up and drop it to force weight to lock at 0.",
                          style="Hint.TLabel")
-        hint.pack(fill="x", padx=12, pady=(6, 0))
+        hint.pack(fill="x", padx=12, pady=(4, 2))
 
-        # Log (compact)
+        # Log
         log_frame = ttk.LabelFrame(self, text=" Log ", style="TLabelframe")
-        log_frame.pack(fill="both", expand=True, padx=12, pady=6)
+        log_frame.pack(fill="both", expand=True, padx=12, pady=(4, 8))
         self.log = tk.Text(log_frame, height=6, wrap="word",
                            bg="#0f0f13", fg=self.text, insertbackground=self.text,
                            highlightthickness=0, bd=0)
         self.log.pack(fill="both", expand=True, padx=6, pady=6)
         self.log.configure(state="disabled")
-
-        # Link
-        link = ttk.Label(self, text="For More Programs: https://eobots.github.io/EOBot/",
-                         style="Link.TLabel", cursor="hand2")
-        link.pack(anchor="w", padx=12, pady=(0, 8))
-        link.bind("<Button-1>", lambda e: webbrowser.open("https://eobots.github.io/EOBot/"))
 
     # -------------- UI helpers --------------
 
@@ -337,7 +318,7 @@ class App(tk.Tk):
         except Exception:
             pass
 
-    # -------------- Button actions --------------
+    # -------------- Actions --------------
 
     def _toggle(self):
         if self.locker.enabled:
