@@ -8,7 +8,12 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="assets/site.css" />
   <style>
+    /* highlight for matched search terms */
     .mark { background:#7f1d1d; color:#fff; border-radius:.25rem; padding:0 .15rem; }
+
+    /* stop other cards from growing to match tallest in the row */
+    #downloadsContainer { align-items:start; }
+    .card { align-self:start; }
   </style>
 </head>
 <body class="bg-grid">
@@ -28,125 +33,28 @@
       <h1>Downloads</h1>
       <p>Click a card to expand and get more info!</p>
 
-      <!-- Search bar -->
+      <!-- Search + count -->
       <div class="container mt-4 flex flex-wrap gap-3 items-center justify-center">
         <input id="dl-search" class="input" placeholder="Search downloads…" style="width:min(100%,360px)">
         <span class="small opacity-75">Showing <span id="dl-count">0</span></span>
       </div>
 
+      <!-- Optional category chips row (site.js will populate if downloads.json has categories) -->
+      <div id="dl-cats" class="container mt-3 flex flex-wrap gap-2 justify-center"></div>
+
       <div class="page-spacer"><div class="core"></div></div>
 
+      <!-- Scoped grid so toggling only affects these cards (and no stretch) -->
       <div id="downloadsContainer"
-     data-card-scope
-     data-accordion="false"
-     class="container"
-     style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));"></div>
+           data-card-scope
+           data-accordion="false"
+           class="container"
+           style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));align-items:start">
+      </div>
     </div>
   </section>
 
   <footer class="footer">© 2025 EOBots. Built by Cera &amp; Recovery — Featured Work By Empire, Trashman, Jetbot, and more.</footer>
   <script src="assets/site.js"></script>
-
-  <script>
-  // --- Enhanced search (accent-insensitive) + highlight + ?q= sync ---
-  (async function(){
-    const container = document.getElementById('downloadsContainer');
-    const search = document.getElementById('dl-search');
-    const countEl = document.getElementById('dl-count');
-
-    // Normalize for accent-insensitive search
-    const norm = s => (s||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-
-    // Safe highlighter (wraps query fragments with <span class="mark">…</span>)
-    function hi(text, q){
-      if(!q) return text;
-      try{
-        const rx = new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig');
-        return String(text).replace(rx, '<span class="mark">$1</span>');
-      }catch{ return String(text); }
-    }
-
-    // Read ?q= from URL and set the box
-    (function seedFromQuery(){
-      const q = new URLSearchParams(location.search).get('q') || '';
-      search.value = q;
-    })();
-
-    let all = [];
-    try{
-      const res = await fetch('downloads.json', {cache:'no-store'});
-      if(!res.ok) throw new Error(res.statusText);
-      const data = await res.json();
-      if(!Array.isArray(data)) throw new Error('downloads.json must be an array');
-      all = data;
-    }catch(e){
-      container.innerHTML = '<p style="color:#ef9a9a">Error loading downloads.json: '+e.message+'</p>';
-      return;
-    }
-
-    function render(items, rawQ){
-      container.innerHTML = '';
-      if(!items.length){
-        countEl.textContent = '0';
-        container.innerHTML = '<p class="small" style="color:#ddd">No downloads match your search.</p>';
-        return;
-      }
-      countEl.textContent = String(items.length);
-
-      for(const d of items){
-        const title = d.title ?? 'Untitled';
-        const desc  = d.description ?? '';
-        const det   = d.details ?? '';
-        const ver   = d.version ? String(d.version) : '';
-        const link  = d.link ?? '';
-        const cats  = Array.isArray(d.categories) ? d.categories.join(', ') : '';
-
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.innerHTML = `
-          <h3 style="font-weight:800;font-size:1.15rem;margin-bottom:.25rem">${hi(title, rawQ)}</h3>
-          <p class="small">${hi(desc, rawQ)}</p>
-          <div class="card-body hidden" style="margin-top:.75rem;font-size:.95rem">
-            ${ver?`<p><strong>Version:</strong> ${hi(ver, rawQ)}</p>`:''}
-            ${det?`<p style="opacity:.9">${hi(det, rawQ)}</p>`:''}
-            ${cats?`<p class="small" style="opacity:.8"><strong>Categories:</strong> ${hi(cats, rawQ)}</p>`:''}
-            ${link?`<div class="small" style="opacity:.8;word-break:break-all">Link: ${hi(link, rawQ)}</div>`:''}
-            ${link?`<a href="${link}" target="_blank" class="btn" style="margin-top:.5rem">Download</a>`:''}
-          </div>`;
-        card.onclick = () => toggleCard(card);
-        container.appendChild(card);
-      }
-    }
-
-    function apply(){
-      const rawQ = (search.value || '').trim();
-      const q = norm(rawQ);
-      const out = all.filter(d=>{
-        const hayParts = [
-          d.title, d.description, d.details, d.version, d.link,
-          ...(Array.isArray(d.categories) ? d.categories : [])
-        ].map(norm);
-        return !q || hayParts.join(' ').includes(q);
-      });
-      render(out, rawQ);
-    }
-
-    // Debounced input + sync ?q=
-    let t=0;
-    search.addEventListener('input', ()=>{
-      clearTimeout(t);
-      t = setTimeout(()=>{
-        const params = new URLSearchParams(location.search);
-        const rawQ = (search.value || '').trim();
-        if(rawQ) params.set('q', rawQ); else params.delete('q');
-        history.replaceState(null, '', location.pathname + (params.toString()?('?'+params.toString()):''));
-        apply();
-      }, 120);
-    });
-
-    // Initial render
-    apply();
-  })();
-  </script>
 </body>
 </html>
