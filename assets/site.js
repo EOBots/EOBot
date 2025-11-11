@@ -1,11 +1,12 @@
 /* assets/site.js
    EOBots – unified site logic
    - Nav active state
-   - Card toggling (scoped; never open all)
-   - Lazy iframes (data-src on .defer-embed inside .shell/.shell-70/.shell-80)
+   - Card toggling (.is-hidden; scoped; optional accordion)
+   - Masonry grid helpers
+   - Lazy iframes (defer-embed support for other pages)
    - EOR page init
-   - Downloads page (search + categories + ?q sync + accent-insensitive + highlight)
-   - HowTo page (videos.json -> cards with lazy YouTube embeds)
+   - Downloads page (search + categories + ?q sync + highlight)
+   - HowTo page (videos.json -> standard YouTube embeds)
 */
 
 /* ---------------------------
@@ -22,12 +23,9 @@
 })();
 
 /* ---------------------------
-   Card toggling (scoped)
-   - NEVER opens every card
-   - Optional accordion per container: set data-accordion="true"
-   - Scope is nearest [data-card-scope] (or a known grid id) so different sections don’t interfere
+   Card toggling (scoped, never affects all)
 ---------------------------- */
-const ACCORDION_DEFAULT = false; // set true if you want one-open-by-default everywhere
+const ACCORDION_DEFAULT = false;
 
 function getCardScope(cardEl){
   return (
@@ -38,10 +36,8 @@ function getCardScope(cardEl){
 }
 
 function resetEmbeds(scope){
-  // Stop any playing video/iframe inside the collapsed card
   scope.querySelectorAll('iframe').forEach(iframe=>{
-    const s = iframe.src;
-    if (s) iframe.src = s;
+    const s = iframe.src; if (s) iframe.src = s;
   });
 }
 
@@ -54,33 +50,68 @@ function toggleCard(cardEl){
     (scope.getAttribute('data-accordion') ?? '').toLowerCase() === 'true' ||
     ACCORDION_DEFAULT;
 
-  // Accordion: close siblings only in the same scope
-  if (accordion && body.classList.contains('hidden')) {
-    scope.querySelectorAll('.card .card-body:not(.hidden)').forEach(el=>{
+  if (accordion && body.classList.contains('is-hidden')) {
+    scope.querySelectorAll('.card .card-body:not(.is-hidden)').forEach(el=>{
       if (el !== body) {
-        el.classList.add('hidden');
+        el.classList.add('is-hidden');
         el.closest('.card')?.classList.remove('expanded');
         resetEmbeds(el);
       }
     });
   }
 
-  body.classList.toggle('hidden');
-  cardEl.classList.toggle('expanded', !body.classList.contains('hidden'));
+  const willOpen = body.classList.contains('is-hidden');
+  if (willOpen) {
+    body.classList.remove('is-hidden');
+    cardEl.classList.add('expanded');
+  } else {
+    collapseCard(cardEl);
+  }
+
+  // Recompute masonry sizing on this grid
+  requestAnimationFrame(()=>masonryReflowScope(cardEl));
 }
 
 function collapseCard(cardEl){
   const body = cardEl.querySelector('.card-body');
-  if (!body || body.classList.contains('hidden')) return;
+  if (!body || body.classList.contains('is-hidden')) return;
   resetEmbeds(body);
-  body.classList.add('hidden');
+  body.classList.add('is-hidden');
   cardEl.classList.remove('expanded');
 }
 
 /* ---------------------------
-   Lazy iframes
-   - Use: <iframe class="defer-embed" data-src="..."></iframe>
-   - Works inside .shell, .shell-70, .shell-80 wrappers
+   Masonry helpers
+---------------------------- */
+function masonryReflow(container){
+  if(!container) return;
+  const cs = getComputedStyle(container);
+  const rowH = parseFloat(cs.getPropertyValue('grid-auto-rows')) || 0;
+  const gap  = parseFloat(cs.getPropertyValue('row-gap')) || 0;
+  if(!rowH) return;
+
+  container.querySelectorAll('.card').forEach(card=>{
+    const h = card.getBoundingClientRect().height;
+    const span = Math.ceil((h + gap) / (rowH + gap));
+    card.style.gridRowEnd = `span ${span}`;
+  });
+}
+function masonryReflowScope(el){
+  const container = (el.closest && el.closest('.cards-masonry')) || null;
+  if(container) masonryReflow(container);
+}
+window.addEventListener('load', ()=>{
+  document.querySelectorAll('.cards-masonry').forEach(masonryReflow);
+});
+window.addEventListener('resize', ()=>{
+  clearTimeout(window.__masonryT);
+  window.__masonryT = setTimeout(()=>{
+    document.querySelectorAll('.cards-masonry').forEach(masonryReflow);
+  }, 120);
+});
+
+/* ---------------------------
+   Lazy iframes for any .defer-embed (not used on HowTo now, but safe)
 ---------------------------- */
 (function(){
   const io = new IntersectionObserver((entries)=>{
@@ -95,12 +126,11 @@ function collapseCard(cardEl){
       io.unobserve(e.target);
     }
   }, {root:null, rootMargin:'150px 0px', threshold:0.15});
-
   document.querySelectorAll('.shell, .shell-70, .shell-80').forEach(el=>io.observe(el));
 })();
 
 /* ---------------------------
-   EOR page init
+   EOR page init (unchanged)
 ---------------------------- */
 (function(){
   const eorRoot = document.getElementById('eor-root');
@@ -274,10 +304,7 @@ function collapseCard(cardEl){
 })();
 
 /* ---------------------------
-   Downloads page: search + category filters
-   - Accent-insensitive search
-   - ?q= sync in URL
-   - Highlight matches in title/desc/details
+   Downloads page: search + categories + highlight
 ---------------------------- */
 (async function(){
   const grid = document.getElementById('downloadsContainer');
@@ -286,9 +313,7 @@ function collapseCard(cardEl){
   const catRow = document.getElementById('dl-cats');
   const countEl = document.getElementById('dl-count');
 
-  // Accent-insensitive normalization
   const norm = s => (s||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  // Safe highlighter
   function hi(text, qRaw){
     if(!qRaw) return String(text ?? '');
     try{
@@ -297,7 +322,6 @@ function collapseCard(cardEl){
     }catch{ return String(text ?? ''); }
   }
 
-  // Seed from ?q
   (function seedFromQuery(){
     const q = new URLSearchParams(location.search).get('q') || '';
     if (search) search.value = q;
@@ -311,6 +335,7 @@ function collapseCard(cardEl){
     if(!items.length){
       grid.innerHTML = '<p class="small" style="color:#ddd">No downloads match your filters.</p>';
       if(countEl) countEl.textContent = '0';
+      requestAnimationFrame(()=>masonryReflow(grid));
       return;
     }
     if(countEl) countEl.textContent = String(items.length);
@@ -325,14 +350,13 @@ function collapseCard(cardEl){
         <div style="margin-top:.25rem;display:flex;flex-wrap:wrap;gap:.35rem">
           ${cats.map(c=>`<span class="chip small">${hi(c, qRaw)}</span>`).join('')}
         </div>
-        <div class="card-body hidden" style="margin-top:.75rem;font-size:.95rem">
+        <div class="card-body is-hidden" style="margin-top:.75rem;font-size:.95rem">
           ${d.version?`<p><strong>Version:</strong> ${hi(d.version, qRaw)}</p>`:''}
           ${d.details?`<p style="opacity:.9">${hi(d.details, qRaw)}</p>`:''}
           ${d.link?`<div class="small" style="opacity:.8;word-break:break-all">Link: ${hi(d.link, qRaw)}</div>`:''}
           ${d.link?`<a href="${d.link}" target="_blank" class="btn" style="margin-top:.5rem" rel="noopener">Download</a>`:''}
         </div>`;
 
-      // Only toggle when clicking the card background/content—not on interactive elements
       card.addEventListener('click', (e)=>{
         if (e.target.closest('a,button,input,textarea,select,label')) return;
         toggleCard(card);
@@ -340,6 +364,8 @@ function collapseCard(cardEl){
 
       grid.appendChild(card);
     }
+
+    requestAnimationFrame(()=>masonryReflow(grid));
   }
 
   function applyFilters(){
@@ -386,7 +412,6 @@ function collapseCard(cardEl){
     renderCatFilters(allCats);
     applyFilters();
 
-    // Debounced search input + ?q= sync
     let t=0;
     search?.addEventListener('input', ()=>{
       clearTimeout(t);
@@ -404,10 +429,8 @@ function collapseCard(cardEl){
   }
 })();
 
-
 /* ---------------------------
-   HowTo page: load from videos.json
-   - Uses standard YouTube embed markup (width/height/frameborder + ?si support)
+   HowTo page: videos.json -> standard YouTube embeds
 ---------------------------- */
 (async function(){
   const container = document.getElementById('videosContainer');
@@ -421,8 +444,8 @@ function collapseCard(cardEl){
   let all = [];
   let activeCats = new Set();
 
+  // Accept plain ID or "ID?si=TOKEN"
   function ytSrcFrom(v){
-    // Accept either "abc123" OR "abc123?si=TOKEN" in youtubeId
     const id = String(v.youtubeId||'').trim();
     return `https://www.youtube.com/embed/${id}`;
   }
@@ -432,6 +455,7 @@ function collapseCard(cardEl){
     if(!items.length){
       container.innerHTML = '<p class="small" style="color:#ddd">No videos match your filters.</p>';
       if(vCount) vCount.textContent = '0';
+      requestAnimationFrame(()=>masonryReflow(container));
       return;
     }
     if(vCount) vCount.textContent = String(items.length);
@@ -446,18 +470,19 @@ function collapseCard(cardEl){
         <div style="margin-top:.25rem;display:flex;flex-wrap:wrap;gap:.35rem">
           ${cats.map(c=>`<span class="chip small">${c}</span>`).join('')}
         </div>
-        <div class="card-body hidden" style="margin-top:.75rem">
-          <!-- Standard YouTube embed exactly as requested -->
-          <iframe width="560" height="315"
-                  src="${ytSrcFrom(v)}"
-                  title="YouTube video player"
-                  frameborder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  referrerpolicy="strict-origin-when-cross-origin"
-                  allowfullscreen></iframe>
+        <div class="card-body is-hidden" style="margin-top:.75rem">
+          <div class="shell shell-70">
+            <!-- Standard YouTube embed exactly as requested -->
+            <iframe width="560" height="315"
+                    src="${ytSrcFrom(v)}"
+                    title="YouTube video player"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerpolicy="strict-origin-when-cross-origin"
+                    allowfullscreen></iframe>
+          </div>
         </div>`;
 
-      // Only toggle when clicking the card background/content—not on interactive elements
       card.addEventListener('click', (e)=>{
         if (e.target.closest('a,button,input,textarea,select,label,iframe')) return;
         toggleCard(card);
@@ -466,10 +491,7 @@ function collapseCard(cardEl){
       container.appendChild(card);
     }
 
-    // If you’re using the masonry packer, reflow after render
-    if (typeof masonryReflow === 'function') {
-      requestAnimationFrame(()=>masonryReflow(container));
-    }
+    requestAnimationFrame(()=>masonryReflow(container));
   }
 
   function applyFilters(){
@@ -519,4 +541,3 @@ function collapseCard(cardEl){
     if(vCount) vCount.textContent = '0';
   }
 })();
-
