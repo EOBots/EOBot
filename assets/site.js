@@ -404,9 +404,10 @@ function collapseCard(cardEl){
   }
 })();
 
+
 /* ---------------------------
    HowTo page: load from videos.json
-   - Uses lazy embeds via .defer-embed + data-src, loaded by the global IO above
+   - Uses standard YouTube embed markup (width/height/frameborder + ?si support)
 ---------------------------- */
 (async function(){
   const container = document.getElementById('videosContainer');
@@ -419,6 +420,12 @@ function collapseCard(cardEl){
 
   let all = [];
   let activeCats = new Set();
+
+  function ytSrcFrom(v){
+    // Accept either "abc123" OR "abc123?si=TOKEN" in youtubeId
+    const id = String(v.youtubeId||'').trim();
+    return `https://www.youtube.com/embed/${id}`;
+  }
 
   function render(items){
     container.innerHTML = '';
@@ -440,31 +447,35 @@ function collapseCard(cardEl){
           ${cats.map(c=>`<span class="chip small">${c}</span>`).join('')}
         </div>
         <div class="card-body hidden" style="margin-top:.75rem">
-          <div class="shell shell-70">
-            <iframe class="w-full h-full defer-embed"
-              loading="lazy"
-              data-src="https://www.youtube.com/embed/${v.youtubeId}"
-              src=""
-              title="${(v.title||'Video').replace(/"/g,'&quot;')}"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              referrerpolicy="strict-origin-when-cross-origin"
-              allowfullscreen></iframe>
-          </div>
+          <!-- Standard YouTube embed exactly as requested -->
+          <iframe width="560" height="315"
+                  src="${ytSrcFrom(v)}"
+                  title="YouTube video player"
+                  frameborder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerpolicy="strict-origin-when-cross-origin"
+                  allowfullscreen></iframe>
         </div>`;
 
+      // Only toggle when clicking the card background/content—not on interactive elements
       card.addEventListener('click', (e)=>{
-        if (e.target.closest('a,button,input,textarea,select,label')) return;
+        if (e.target.closest('a,button,input,textarea,select,label,iframe')) return;
         toggleCard(card);
       });
 
       container.appendChild(card);
+    }
+
+    // If you’re using the masonry packer, reflow after render
+    if (typeof masonryReflow === 'function') {
+      requestAnimationFrame(()=>masonryReflow(container));
     }
   }
 
   function applyFilters(){
     const q = norm(vSearch?.value || '');
     let out = all.filter(v=>{
-      const hay = norm(`${v.title||''} ${v.description||''}`);
+      const hay = norm(`${v.title||''} ${v.description||''} ${(v.categories||[]).join(' ')}`);
       const passQ = !q || hay.includes(q);
       const cats = Array.isArray(v.categories)? v.categories : [];
       const passC = activeCats.size===0 || cats.some(c=>activeCats.has(c));
@@ -496,13 +507,16 @@ function collapseCard(cardEl){
     const data = await res.json();
     if(!Array.isArray(data)) throw new Error('videos.json must be an array');
     all = data;
+
     const allCats = data.map(v=>Array.isArray(v.categories)? v.categories : []);
     renderCatFilters(allCats);
     applyFilters();
+
     let t=0;
     vSearch?.addEventListener('input', ()=>{ clearTimeout(t); t=setTimeout(applyFilters,120); });
   }catch(e){
-    container.innerHTML = '<p style="color:#ef9a9a">Error loading videos.json.</p>';
+    container.innerHTML = '<p class="small" style="color:#ef9a9a">Error loading videos.json.</p>';
     if(vCount) vCount.textContent = '0';
   }
 })();
+
