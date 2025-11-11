@@ -4,76 +4,117 @@
     "description": "Network packet analyzer for Endless Online by Abuse built off Exile EOProxy.",
     "version": "2.3.1",
     "details": "Updated for the latest EO patch with logging and filtering.",
-    "link": "https://mega.nz/file/MUlniZqL#tm-GC2Ouek9F-sOR7w8P-BkLNIlhRoqS1WRZehdUxOw"
+    "link": "https://mega.nz/file/MUlniZqL#tm-GC2Ouek9F-sOR7w8P-BkLNIlhRoqS1WRZehdUxOw",
+    "categories": [
+      "Networking"
+    ]
   },
   {
     "title": "Captcha Solver (Trashman Edition)",
     "description": "Automated OCR-based captcha bypass.",
     "version": "2.2",
     "details": "You must download Tesseract: https://github.com/tesseract-ocr/tesseract/releases/download/5.5.0/tesseract-ocr-w64-setup-5.5.0.20241111.exe. Once installed, run the captcha script.",
-    "link": "https://mega.nz/file/9YNUgSDK#QGW21abjoLvwUEEwJOU7HYy515tmseA8FTGPXU1Te2Q"
+    "link": "https://mega.nz/file/9YNUgSDK#QGW21abjoLvwUEEwJOU7HYy515tmseA8FTGPXU1Te2Q",
+    "categories": [
+      "OCR",
+      "Source"
+    ]
   },
   {
     "title": "Tesseract For Captcha Solver",
     "description": "Required OCR engine for the captcha solver.",
     "version": "1.4.2",
     "details": "You must download Tesseract for the captcha solver to run.",
-    "link": "https://github.com/tesseract-ocr/tesseract/releases/download/5.5.0/tesseract-ocr-w64-setup-5.5.0.20241111.exe"
+    "link": "https://github.com/tesseract-ocr/tesseract/releases/download/5.5.0/tesseract-ocr-w64-setup-5.5.0.20241111.exe",
+    "categories": [
+      "OCR",
+      "Prerequisite"
+    ]
   },
   {
     "title": "CeraBot",
     "description": "Automated boss and training bot.",
     "version": "12",
     "details": "Melee, ranged, item pickup.",
-    "link": "https://mega.nz/file/NB0zxKyJ#T1dCy4lPXf1OUBPJmiDEnAW5rm3HUJT_QDN-bjtBSJg"
+    "link": "https://mega.nz/file/NB0zxKyJ#T1dCy4lPXf1OUBPJmiDEnAW5rm3HUJT_QDN-bjtBSJg",
+    "categories": [
+      "Bots"
+    ]
   },
   {
     "title": "Walkable Recorder",
     "description": "Record tiles for your CeraBot to follow and use.",
     "version": "2",
     "details": "An easy-to-use recorder to create your walkable.json files for CeraBot.",
-    "link": "https://mega.nz/file/QcsiRDpD#BSowb0EWCuQII_J3prYtwA70MJuWbnl-Gotb4EQpEIg"
+    "link": "https://mega.nz/file/QcsiRDpD#BSowb0EWCuQII_J3prYtwA70MJuWbnl-Gotb4EQpEIg",
+    "categories": [
+      "Bots",
+      "Routes"
+    ]
   },
   {
     "title": "CeraBot 7",
     "description": "A basic melee bot.",
     "version": "1.0.0",
     "details": "Melee, walk, gain EXP. AFK bot.",
-    "link": "https://mega.nz/file/REF2lSZI#zTq43ZD56gF7QBk0C0rGUqvJQ3x62hn4PgXnJQWNPL4"
+    "link": "https://mega.nz/file/REF2lSZI#zTq43ZD56gF7QBk0C0rGUqvJQ3x62hn4PgXnJQWNPL4",
+    "categories": [
+      "Bots"
+    ]
   },
   {
     "title": "Captcha Solver (LEGACY)",
     "description": "Automated OCR-based captcha bypass (known issue with small 'k').",
     "version": "1.4.2",
     "details": "You must download Tesseract: https://github.com/tesseract-ocr/tesseract/releases/download/5.5.0/tesseract-ocr-w64-setup-5.5.0.20241111.exe. Once installed, run the captcha script.",
-    "link": "https://github.com/HelloSpaghettiBot/EO-Captcha-Solver/blob/main/CaptchaBotV2.py"
+    "link": "https://github.com/HelloSpaghettiBot/EO-Captcha-Solver/blob/main/CaptchaBotV2.py",
+    "categories": [
+      "OCR",
+      "Source"
+    ]
   },
-    {
+  {
     "title": "Walkable Files",
     "description": "Walkable.json files.",
     "version": "1",
     "details": "You these files are the walkable.json files for the cerabot. Change the name to Walkable.json for the bot to use them.",
-    "link": "https://github.com/EOBots/walkables"
+    "link": "https://github.com/EOBots/walkables",
+    "categories": [
+      "Bots",
+      "Routes"
+    ]
   },
   {
     "title": "Cerabot Source Code",
     "description": "Cerbot sourcode can be found here.",
     "version": "2.3.1",
     "details": "Source code for all different versions of Cerabot",
-    "link": "https://github.com/EOBots/CeraBot"
+    "link": "https://github.com/EOBots/CeraBot",
+    "categories": [
+      "Bots",
+      "Source"
+    ]
   },
-   {
+  {
     "title": "EO Patcher Source Code",
     "description": "A free opensource launcher/patcher for Endless-Online Recharge.",
     "version": "2",
     "details": "Source code for EO Patcher by Recovery",
-    "link": "https://github.com/EOBots/EOBot/blob/main/downloads/EOPatcher"
+    "link": "https://github.com/EOBots/EOBot/blob/main/downloads/EOPatcher",
+    "categories": [
+      "Patcher",
+      "Source"
+    ]
   },
-     {
+  {
     "title": "RecoBot Source",
     "description": "A free opensource bot by recovery - Endless-Online Recharge.",
     "version": "1",
     "details": "Source code for recobot by Recovery",
-    "link": "https://github.com/EOBots/RecoBot"
+    "link": "https://github.com/EOBots/RecoBot",
+    "categories": [
+      "Bots",
+      "Source"
+    ]
   }
 ]

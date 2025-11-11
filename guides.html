@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>EOBots • EO Guides</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="assets/site.css" />
+</head>
+<body class="bg-grid">
+  <nav class="nav">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="downloads.html">Download</a></li>
+      <li><a href="howto.html">How&nbsp;To</a></li>
+      <li><a href="discord.html">Discord</a></li>
+      <li><a href="eor.html">EOR&nbsp;DB</a></li>
+      <li><a href="guides.html">EO&nbsp;Guides</a></li>
+    </ul>
+  </nav>
+
+  <section class="hero">
+    <div class="container">
+      <h1>EO Guides</h1>
+      <p>Embedded site with selector; fixed height avoids layout jump.</p>
+      <div class="page-spacer"><div class="core"></div></div>
+
+      <div class="container">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <label class="text-sm text-gray-300">
+            Page
+            <select id="eog-select" class="w-full" style="margin-top:.25rem;background:rgba(0,0,0,.7); border:1px solid var(--ring-red); color:#fff; padding:.5rem .75rem;">
+              <option value="https://www.eo-guides.com/">Home</option>
+              <option value="https://www.eo-guides.com/guides">Guides index</option>
+              <option value="https://www.eo-guides.com/quests" selected>Quests</option>
+              <option value="https://www.eo-guides.com/boss-encounters">Boss Encounters</option>
+              <option value="https://www.eo-guides.com/classes">Classes</option>
+              <option value="https://www.eo-guides.com/world-map">World Map</option>
+              <option value="https://www.eo-guides.com/commands">Commands</option>
+            </select>
+          </label>
+          <div style="flex:1"></div>
+          <a class="btn" href="https://www.eo-guides.com/" target="_blank" rel="noopener">Open full site</a>
+        </div>
+
+        <div id="eog-wrap" class="shell shell-80" style="margin-top:1rem;">
+          <iframe id="eog-frame" data-src="https://www.eo-guides.com/quests" class="w-full h-full defer-embed" loading="lazy" title="EO Guides"></iframe>
+        </div>
+
+        <div id="eog-fallback" class="hidden mt-3 rounded-md border border-red-500/30 bg-black/50 p-3 text-sm text-gray-300">
+          Looks like this page can’t be embedded (X-Frame-Options). Use the “Open full site” button above.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    (function(){
+      const sel=document.getElementById("eog-select");
+      const frame=document.getElementById("eog-frame");
+      const fallback=document.getElementById("eog-fallback");
+      const KEY="eog.last";
+      const last=localStorage.getItem(KEY);
+      if(last){ sel.value=last; frame.setAttribute('data-src', last); }
+      sel.addEventListener("change",()=>{
+        const url=sel.value; localStorage.setItem(KEY,url);
+        if(!frame.src){ frame.setAttribute('data-src', url); } else { frame.src=url; }
+      });
+      frame.addEventListener("load",()=>{ try{
+        const blocked = frame.contentDocument && frame.contentDocument.body && frame.contentDocument.body.childElementCount===0;
+        if(blocked) fallback.classList.remove("hidden");
+      }catch{} });
+    })();
+  </script>
+
+  <footer class="footer">© 2025 EOBots. Built by Cera &amp; Recovery — Featured Work By Empire, Trashman, Jetbot, and more.</footer>
+  <script src="assets/site.js"></script>
+</body>
+</html>

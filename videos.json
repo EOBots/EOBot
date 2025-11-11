@@ -1,0 +1,29 @@
+[
+  {
+    "title": "Finding NPC Address",
+    "description": "Locate NPC memory addresses.",
+    "youtubeId": "iTLIuEHOfd4",
+    "categories": [
+      "Addresses",
+      "Basics"
+    ]
+  },
+  {
+    "title": "Configuring CaptchaBot",
+    "description": "Full setup + troubleshooting.",
+    "youtubeId": "ysz5S6PUM-U",
+    "categories": [
+      "Captcha",
+      "Automation"
+    ]
+  },
+  {
+    "title": "Recording Routes",
+    "description": "Use the WalkPath Recorder effectively.",
+    "youtubeId": "eIP6LVxiPqw",
+    "categories": [
+      "Routes",
+      "Automation"
+    ]
+  }
+]

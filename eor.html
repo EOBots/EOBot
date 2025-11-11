@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>EOBots • EOR DB</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="assets/site.css" />
+</head>
+<body class="bg-grid">
+  <nav class="nav">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="downloads.html">Download</a></li>
+      <li><a href="howto.html">How&nbsp;To</a></li>
+      <li><a href="discord.html">Discord</a></li>
+      <li><a href="eor.html">EOR&nbsp;DB</a></li>
+      <li><a href="guides.html">EO&nbsp;Guides</a></li>
+    </ul>
+  </nav>
+
+  <section class="hero">
+    <div class="container">
+      <h1>EOR Database Search</h1>
+      <p>Stable layout: results scroll inside the module—no page shift.</p>
+      <div class="page-spacer"><div class="core"></div></div>
+
+      <div id="eor-root" class="container eor-shell shell">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div class="flex flex-wrap gap-2">
+            <button data-cat="items"  class="eor-tab rounded-md border border-red-500/40 px-3 py-1 text-white">Items</button>
+            <button data-cat="npcs"   class="eor-tab rounded-md border border-red-500/40 px-3 py-1 text-white">NPCs</button>
+            <button data-cat="spells" class="eor-tab rounded-md border border-red-500/40 px-3 py-1 text-white">Spells</button>
+            <button data-cat="maps"   class="eor-tab rounded-md border border-red-500/40 px-3 py-1 text-white">Maps</button>
+            <button data-cat="shops"  class="eor-tab rounded-md border border-red-500/40 px-3 py-1 text-white">Shops</button>
+            <button data-cat="classes" class="eor-tab rounded-md border border-red-500/40 px-3 py-1 text-white">Classes</button>
+            <button data-cat="quests" class="eor-tab rounded-md border border-red-500/40 px-3 py-1 text-white">Quests</button>
+          </div>
+          <div style="flex:1"></div>
+          <label class="flex items-center gap-2 text-sm text-gray-300">
+            <input id="eor-unk" type="checkbox" style="accent-color:#ef4444">
+            show_unk=1
+          </label>
+          <div class="relative" style="width:min(100%,320px)">
+            <input id="eor-q" placeholder="Search name or ID…" class="w-full rounded-md" style="background:rgba(0,0,0,.7); border:1px solid var(--ring-red); color:#fff; padding:.5rem .75rem; padding-right:2rem;">
+            <span style="position:absolute;right:.5rem;top:.45rem;color:#999">⌕</span>
+          </div>
+        </div>
+
+        <div class="eor-body" style="margin-top:1rem">
+          <div class="eor-grid">
+            <div class="left-col">
+              <div id="eor-status" class="text-sm text-gray-300 mb-2">Pick a category.</div>
+              <ul id="eor-list" class="divide-y divide-red-500/20 rounded-md border border-red-500/30 bg-black/50"></ul>
+              <button id="eor-more" class="mt-3 hidden rounded-md border border-red-500/40 px-3 py-1 text-white">Load more</button>
+            </div>
+            <div class="right-col rounded-md border border-red-500/30 bg-black/50 p-3">
+              <div class="flex items-center justify-between gap-2">
+                <h3 id="eor-detail-title" class="text-xl font-semibold text-white">Details</h3>
+                <div class="flex gap-2">
+                  <button id="eor-copy-json" class="rounded-md border border-red-500/40 px-2 py-1 text-xs text-white">Copy JSON</button>
+                  <button id="eor-copy-curl" class="rounded-md border border-red-500/40 px-2 py-1 text-xs text-white">Copy curl</button>
+                </div>
+              </div>
+              <div id="eor-images" class="mt-3 flex flex-wrap gap-3"></div>
+              <pre id="eor-detail" class="mt-3 rounded bg-black/70 p-3 text-green-200 text-sm border border-red-500/20 wrap-json">Select a result…</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">© 2025 EOBots. Built by Cera &amp; Recovery — Featured Work By Empire, Trashman, Jetbot, and more.</footer>
+  <script src="assets/site.js"></script>
+</body>
+</html>

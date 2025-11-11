@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>EOBots • How To</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="assets/site.css" />
+</head>
+<body class="bg-grid">
+  <nav class="nav">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="downloads.html">Download</a></li>
+      <li><a href="howto.html">How&nbsp;To</a></li>
+      <li><a href="discord.html">Discord</a></li>
+      <li><a href="eor.html">EOR&nbsp;DB</a></li>
+      <li><a href="guides.html">EO&nbsp;Guides</a></li>
+    </ul>
+  </nav>
+
+  <section class="hero">
+    <div class="container">
+      <h1>How To Use</h1>
+      <p>Step‑by‑step videos embedded below. Click a card to open.</p>
+      <div class="page-spacer"><div class="core"></div></div>
+
+      <div class="container" style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));">
+        <div class="card" onclick="toggleCard(this)">
+          <h3 class="text-xl font-bold mb-1">Finding NPC Address</h3>
+          <p class="text-white/80">Learn how to find NPC addresses.</p>
+          <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
+            <div class="shell shell-70">
+              <iframe class="w-full h-full" loading="lazy" src="https://www.youtube.com/embed/iTLIuEHOfd4?si=ONAaS13zwQDKNSgP" title="YouTube"></iframe>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" onclick="toggleCard(this)">
+          <h3 class="text-xl font-bold mb-1">Configuring CaptchaBot</h3>
+          <p class="text-white/80">Step‑by‑step setup tutorial.</p>
+          <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
+            <div class="shell shell-70">
+              <iframe class="w-full h-full" loading="lazy" src="https://www.youtube.com/embed/ysz5S6PUM-U" title="YouTube"></iframe>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" onclick="toggleCard(this)">
+          <h3 class="text-xl font-bold mb-1">Recording Routes</h3>
+          <p class="text-white/80">Guide to using the WalkPath Recorder.</p>
+          <div class="card-body hidden mt-4 overflow-hidden rounded-xl">
+            <div class="shell shell-70">
+              <iframe class="w-full h-full" loading="lazy" src="https://www.youtube.com/embed/eIP6LVxiPqw?si=iVTs-2GNDcT5j953" title="YouTube"></iframe>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">© 2025 EOBots. Built by Cera &amp; Recovery — Featured Work By Empire, Trashman, Jetbot, and more.</footer>
+  <script src="assets/site.js"></script>
+</body>
+</html>

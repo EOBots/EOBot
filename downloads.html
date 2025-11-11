@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>EOBots • Downloads</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="assets/site.css" />
+</head>
+<body class="bg-grid">
+  <nav class="nav">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="downloads.html">Download</a></li>
+      <li><a href="howto.html">How&nbsp;To</a></li>
+      <li><a href="discord.html">Discord</a></li>
+      <li><a href="eor.html">EOR&nbsp;DB</a></li>
+      <li><a href="guides.html">EO&nbsp;Guides</a></li>
+    </ul>
+  </nav>
+
+  <section class="hero">
+    <div class="container">
+      <h1>Downloads</h1>
+      <p>Click a card to expand and get more info + the download link.</p>
+      <div class="page-spacer"><div class="core"></div></div>
+      <div id="downloadsContainer" class="container" style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));"></div>
+    </div>
+  </section>
+
+  <footer class="footer">© 2025 EOBots. Built by Cera &amp; Recovery — Featured Work By Empire, Trashman, Jetbot, and more.</footer>
+  <script src="assets/site.js"></script>
+</body>
+</html>
+
+<script>
+(async function loadDownloads(){
+  const container=document.getElementById('downloadsContainer');
+  try{
+    const res=await fetch('downloads.json',{cache:'no-store'});
+    if(!res.ok) throw new Error(res.statusText);
+    const downloads=await res.json();
+    if(!Array.isArray(downloads)) throw new Error('downloads.json must be an array');
+    container.innerHTML='';
+    downloads.forEach(d=>{
+      const card=document.createElement('div');
+      card.className='card';
+      card.innerHTML = `
+        <h3 style="font-weight:800;font-size:1.15rem;margin-bottom:.25rem">${d.title??'Untitled'}</h3>
+        <p style="opacity:.9">${d.description??''}</p>
+        <div class="card-body hidden" style="margin-top:.75rem;font-size:.95rem">
+          ${d.version?`<p><strong>Version:</strong> ${d.version}</p>`:''}
+          ${d.details?`<p style="opacity:.9">${d.details}</p>`:''}
+          ${d.link?`<a href="${d.link}" target="_blank" class="btn" style="margin-top:.5rem">Download</a>`:''}
+        </div>`;
+      card.onclick=()=>toggleCard(card);
+      container.appendChild(card);
+    });
+  }catch(e){
+    container.innerHTML='<p style="color:#ef9a9a">Error loading downloads.json: '+e.message+'</p>';
+  }
+})();
+</script>
