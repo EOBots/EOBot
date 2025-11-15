@@ -116,6 +116,17 @@
       "Source"
     ]
   },
+    {
+    "title": "EO Proxy looper",
+    "description": "experimental proxy to record movement / attack.",
+    "version": "2",
+    "details": "Source code ",
+    "link": "https://mega.nz/file/dUsTHbwa#SFaNXkH2RO0zsJdFXhTIQCwy3Yo0PEgI-PxqtePvfjw",
+    "categories": [
+      "Proxy",
+      "Source"
+    ]
+  },
   {
     "title": "RecoBot Source",
     "description": "A free opensource bot by recovery - Endless-Online Recharge.",
